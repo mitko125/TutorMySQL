@@ -37,26 +37,39 @@
 
     <!-- ТОЗИ ПАНЕЛ ЩЕ СЕ ПОКАЖЕ САМО ЗА АДМИНИСТРАТОР (PRIVILEGE 2) -->
     <div id="adminSection" class="admin-panel">
-        <h4>🔐 Административен панел (Привилегия 2)</h4>
+        <h4 id="adminPanelTitle">⚙️ Настройки на MySQL връзката</h4>
         <hr>
-        <h5>Настройки на MySQL (Временни)</h5>
         <div class="form-group">
             <label>IP Адрес (Host):</label>
-            <input type="text" id="dbHost" value="127.0.0.1">
+            <input type="text" id="dbHost">
+        </div>
+        <div class="form-group">
+            <label>Потребител (User):</label>
+            <input type="text" id="dbUser">
+        </div>
+        <div class="form-group">
+            <label>Парола (Password):</label>
+            <input type="password" id="dbPass" placeholder="Въведете парола, ако има">
         </div>
         <div class="form-group">
             <label>База данни (DB Name):</label>
-            <input type="text" id="dbName" value="StreetLightsTest">
+            <input type="text" id="dbName">
         </div>
-        <button id="saveConfigBtn" class="btn-sync">Симулирай Нова Връзка</button>
+        
+        <!-- Имаме един бутон, но неговото поведение и текст ще се контролират строго от JS -->
+        <button id="saveConfigBtn" class="btn-sync">Приложи настройките</button>
     </div>
 </div>
 
 <script>
-// 1. Зареждане на операторите при отваряне на страницата
-document.addEventListener('DOMContentLoaded', () => {
+let currentPrivilege = null; // Пазим ниото на достъп на текущо влезлия оператор
+
+function loadOperators() {
     fetch('/api/operators')
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error();
+            return res.json();
+        })
         .then(data => {
             const select = document.getElementById('operatorSelect');
             select.innerHTML = '<option value="">-- Изберете от списъка --</option>';
@@ -66,14 +79,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.textContent = `${op.name_operator} (Ниво: ${op.privilege})`;
                 select.appendChild(opt);
             });
+            
+            // Ако има връзка, но няма влязъл оператор ИЛИ е влязъл обикновен оператор (0 или 1) -> Скриваме панела веднага!
+            if (currentPrivilege === null || currentPrivilege < 2) {
+                document.getElementById('adminSection').style.display = 'none';
+            }
+            
+            document.getElementById('statusMessage').textContent = 'Връзката с базата данни е стабилна.';
+            document.getElementById('statusMessage').style.color = 'green';
         })
         .catch(err => {
-            document.getElementById('statusMessage').textContent = 'Грешка при зареждане на оператори!';
-            document.getElementById('statusMessage').style.color = 'red';
+            showNoConnectionState();
+        });
+}
+
+function showNoConnectionState() {
+    const statusMsg = document.getElementById('statusMessage');
+    statusMsg.textContent = '⚠️ Грешка: Няма връзка с MySQL! Настройте сървъра от панела отдолу.';
+    statusMsg.style.color = 'red';
+    
+    document.getElementById('operatorSelect').innerHTML = '<option value="">Няма връзка с БД</option>';
+    
+    // Авариен режим: Показваме панела за ВСЕКИ, за да се спаси връзката
+    document.getElementById('adminSection').style.display = 'block';
+    document.getElementById('adminPanelTitle').textContent = '🚨 Авариен режим: Настройка на MySQL';
+    document.getElementById('saveConfigBtn').textContent = 'Тествай и приложи връзката (Временно)';
+}
+
+// 1. Първоначална проверка при стартиране
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/db-status')
+        .then(res => res.json())
+        .then(status => {
+            if (status.config) {
+                document.getElementById('dbHost').value = status.config.host;
+                document.getElementById('dbUser').value = status.config.user;
+                document.getElementById('dbName').value = status.config.database;
+            }
+
+            if (status.online) {
+                loadOperators();
+            } else {
+                showNoConnectionState();
+            }
         });
 });
 
-// 2. Логика за влизане и проверка на парола
+// 2. Логика за Влизане (Вход)
 document.getElementById('loginBtn').addEventListener('click', () => {
     const id = document.getElementById('operatorSelect').value;
     const password = document.getElementById('passwordInput').value;
@@ -94,36 +146,62 @@ document.getElementById('loginBtn').addEventListener('click', () => {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            statusMsg.textContent = `Успешен вход! Здравей, ${data.name}. Вашата привилегия е: ${data.privilege}`;
+            statusMsg.textContent = `Успешен вход! Добре дошли, ${data.name}.`;
             statusMsg.style.color = 'green';
             
-            // Ако е администратор (ниво 2), показваме скритото меню
-            if (data.privilege === 2) {
+            currentPrivilege = data.privilege; // Запомняме нивото (0, 1 или 2)
+
+            if (currentPrivilege === 2) {
+                // АДМИНИСТРАТОР: Отключваме пълни права и бутона за диск
                 adminSection.style.display = 'block';
+                document.getElementById('adminPanelTitle').textContent = '🔐 Административен панел (Ниво 2)';
+                document.getElementById('saveConfigBtn').textContent = 'Запиши на ДИСКА перманентно';
             } else {
+                // ОБИКНОВЕН ОПЕРАТОР: Скриваме панела на мига, дори да е бил отворен преди това!
                 adminSection.style.display = 'none';
             }
         } else {
             statusMsg.textContent = data.message;
             statusMsg.style.color = 'red';
+            // При грешна парола нулираме правата и скриваме критичните контроли
+            currentPrivilege = null;
             adminSection.style.display = 'none';
         }
     });
 });
 
-// 3. Симулация на промяна на MySQL връзката
+// 3. Изпълнение на бутона за настройки
 document.getElementById('saveConfigBtn').addEventListener('click', () => {
     const host = document.getElementById('dbHost').value;
+    const user = document.getElementById('dbUser').value;
+    const password = document.getElementById('dbPass').value;
     const database = document.getElementById('dbName').value;
+    const btnText = document.getElementById('saveConfigBtn').textContent;
+
+    // Проверяваме текста на бутона – ако пише "перманентно", само тогава бакендът ще пише по диска
+    const endpoint = (btnText === 'Запиши на ДИСКА перманентно') ? '/api/config/save' : '/api/config/test';
     
-    fetch('/api/config/test', {
+    fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host, database, user: 'root', password: '' })
+        body: JSON.stringify({ host, user, password, database })
     })
     .then(res => res.json())
     .then(data => {
         alert(data.message);
+        
+        // След прилагане, изчакваме и проверяваме дали базата "захапа"
+        setTimeout(() => {
+            fetch('/api/db-status')
+                .then(res => res.json())
+                .then(status => {
+                    if (status.online) {
+                        loadOperators(); // Успех! Презареждаме операторите (и скриваме панела за не-администратори)
+                    } else {
+                        showNoConnectionState(); // Пак няма връзка, оставяме прозореца отворен
+                    }
+                });
+        }, 500);
     });
 });
 </script>
