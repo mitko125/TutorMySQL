@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>StreetLightsMasterHtml - Вход</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        /* Малко допълнителен базов стил за структурата, съобразен с ESP32 стила */
+        .container { max-width: 500px; margin: 30px auto; padding: 20px; border: 1px solid #ccc; background: #fff; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group select, .form-group input { width: 100%; padding: 8px; box-sizing: border-box; }
+        .admin-panel { display: none; margin-top: 20px; padding: 15px; border: 1px dashed red; background: #fffbfb; }
+        .status-msg { margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Управление на Улично Осветление</h2>
+    <h3>Вход в системата</h3>
+    
+    <div class="form-group">
+        <label for="operatorSelect">Изберете оператор:</label>
+        <select id="operatorSelect">
+            <option value="">Зареждане на оператори...</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="passwordInput">Парола:</label>
+        <input type="password" id="passwordInput" placeholder="Въведете парола">
+    </div>
+
+    <button id="loginBtn" class="btn-sync">Влизане</button>
+    <div id="statusMessage" class="status-msg"></div>
+
+    <!-- ТОЗИ ПАНЕЛ ЩЕ СЕ ПОКАЖЕ САМО ЗА АДМИНИСТРАТОР (PRIVILEGE 2) -->
+    <div id="adminSection" class="admin-panel">
+        <h4>🔐 Административен панел (Привилегия 2)</h4>
+        <hr>
+        <h5>Настройки на MySQL (Временни)</h5>
+        <div class="form-group">
+            <label>IP Адрес (Host):</label>
+            <input type="text" id="dbHost" value="127.0.0.1">
+        </div>
+        <div class="form-group">
+            <label>База данни (DB Name):</label>
+            <input type="text" id="dbName" value="StreetLightsTest">
+        </div>
+        <button id="saveConfigBtn" class="btn-sync">Симулирай Нова Връзка</button>
+    </div>
+</div>
+
+<script>
+// 1. Зареждане на операторите при отваряне на страницата
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/operators')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('operatorSelect');
+            select.innerHTML = '<option value="">-- Изберете от списъка --</option>';
+            data.forEach(op => {
+                const opt = document.createElement('option');
+                opt.value = op.id_operator;
+                opt.textContent = `${op.name_operator} (Ниво: ${op.privilege})`;
+                select.appendChild(opt);
+            });
+        })
+        .catch(err => {
+            document.getElementById('statusMessage').textContent = 'Грешка при зареждане на оператори!';
+            document.getElementById('statusMessage').style.color = 'red';
+        });
+});
+
+// 2. Логика за влизане и проверка на парола
+document.getElementById('loginBtn').addEventListener('click', () => {
+    const id = document.getElementById('operatorSelect').value;
+    const password = document.getElementById('passwordInput').value;
+    const statusMsg = document.getElementById('statusMessage');
+    const adminSection = document.getElementById('adminSection');
+
+    if (!id) {
+        statusMsg.textContent = 'Моля, изберете оператор!';
+        statusMsg.style.color = 'orange';
+        return;
+    }
+
+    fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_operator: id, password: password })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            statusMsg.textContent = `Успешен вход! Здравей, ${data.name}. Вашата привилегия е: ${data.privilege}`;
+            statusMsg.style.color = 'green';
+            
+            // Ако е администратор (ниво 2), показваме скритото меню
+            if (data.privilege === 2) {
+                adminSection.style.display = 'block';
+            } else {
+                adminSection.style.display = 'none';
+            }
+        } else {
+            statusMsg.textContent = data.message;
+            statusMsg.style.color = 'red';
+            adminSection.style.display = 'none';
+        }
+    });
+});
+
+// 3. Симулация на промяна на MySQL връзката
+document.getElementById('saveConfigBtn').addEventListener('click', () => {
+    const host = document.getElementById('dbHost').value;
+    const database = document.getElementById('dbName').value;
+    
+    fetch('/api/config/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host, database, user: 'root', password: '' })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+    });
+});
+</script>
+
+</body>
+</html>
