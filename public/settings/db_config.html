@@ -74,7 +74,7 @@ document.getElementById('saveConfigBtn').addEventListener('click', () => {
     const database = document.getElementById('dbName').value;
     const btnText = document.getElementById('saveConfigBtn').textContent;
 
-    const endpoint = (btnText === 'Запиши на ДИСКА перманентно') ? '/api/config/save' : '/api/config/test';
+    const endpoint = (btnText === 'Запиши на ДИСКА перманентно') ? '/api/mysql/save' : '/api/mysql/test';
     
     fetch(endpoint, {
         method: 'POST',
