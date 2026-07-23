@@ -5,6 +5,7 @@ import * as db from './config/db.mjs';
 import { codePassword, decodePassword } from './utils/crypto.mjs';
 import { PRIVILEGE, APP_PORT } from './config/constants.mjs';
 import { CONFIG_MESSAGES } from './config/constants.mjs';
+import { CONFIG_MESSAGES_TEXT } from './config/constants.mjs';
 
 // Регенериране на __dirname, тъй като липсва в ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -24,25 +25,54 @@ function checkAdminRights(req, res, next) {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
     
-    // Проверяваме дали базата данни изобщо е онлайн
+    // 1. Проверяваме дали базата данни е онлайн
     const isDbOnline = db.checkDbStatus(); 
 
-    // АКО БАЗАТА Е СЧУПЕНА: Позволяваме достъп САМО до db_config.html, за да се оправи връзката!
+    // АКО БАЗАТА Е СЧУПЕНА: Пускаме САМО до конфигурационния файл, без значение кой пита
     if (!isDbOnline) {
         if (req.path === '/db_config.html') {
-            return next(); // Пускаме го към конфигурационния файл без проверки за оператор
+            return next(); 
         } else {
-            return res.redirect('/index.html?error=no_connection'); // Всичко друго се изхвърля
+            return res.redirect('/index.html?error=no_connection'); 
         }
     }
 
-    // АКО БАЗАТА Е ОНЛАЙН: Изискваме потребителят изрично да е влязъл с ниво CONFIG (2)
-    if (!session || session.privilege !== PRIVILEGE.CONFIG) {
-        console.log(`🛡️ Middleware спря неоторизиран опит за разглеждане на: ${req.path} от IP: ${clientIp}`);
-        return res.redirect('/index.html?error=no_rights'); // Изхвърляне към входа с грешка!
+    // 2. АКО БАЗАТА Е ОНЛАЙН: Проверяваме дали потребителят изобщо е влязъл в системата
+    if (!session) {
+        console.log(`🛡️ Middleware спря неоторизиран опит за достъп до: ${req.baseUrl}${req.path} от IP: ${clientIp}`);
+        return res.redirect('/index.html?error=no_rights');
     }
 
-    // Ако всичко е наред, викаме next(), което означава "Пътят е чист, дай му файла!"
+    // 3. ЖЕЛЯЗНО РАЗПРЕДЕЛЕНИЕ НА ПРАВАТА ПО ПАПКИ:
+    
+    // А) Ако се опитва да влезе в папка "settings" (Настройки) -> Трябва да е твърдо ниво 2 (CONFIG)
+    if (req.baseUrl === '/settings') {
+        if (session.privilege !== PRIVILEGE.CONFIG) {
+            console.log(`🔒 Оператор ${session.name} (Ниво ${session.privilege}) се опита да влезе в настройките, но изискваме Ниво 2!`);
+            return res.redirect('/index.html?error=no_rights');
+        }
+    }
+    
+    // Б) Ако се опитва да влезе в папка "reports" (Отчети)
+    if (req.baseUrl === '/reports') {
+        
+        // 🚷 СПЕЦИАЛЕН КАТИНАР ЗА ИЗТРИВАНЕ:
+        // Ако се опитва да отвори точно файла за триене на отчети -> Изискваме твърдо Ниво 2 (CONFIG)!
+        if (req.path === '/delete_logs.html') {
+            if (session.privilege !== PRIVILEGE.CONFIG) {
+                console.log(`🔒 Оператор ${session.name} (Ниво ${session.privilege}) се опитва да изтрие отчети, но изискваме Ниво 2!`);
+                return res.redirect('/index.html?error=no_rights'); // Изхвърляне!
+            }
+        }
+        
+        // За всички ОСТАНАЛИ отчети (като системния лог и LQI теста) -> Трябва да е поне Ниво 1 (SERVIZ)
+        if (session.privilege < PRIVILEGE.SERVIZ) { 
+            console.log(`🔒 Оператор ${session.name} (Ниво ${session.privilege}) се опита да чете отчети, но няма право!`);
+            return res.redirect('/index.html?error=no_rights'); // Изхвърляне за Ниво 0
+        }
+    }
+
+    // Ако всички проверки минат успешно -> "Пътят е чист, дай му файла!"
     next();
 }
 
@@ -144,17 +174,59 @@ app.post('/api/mysql/save', (req, res) => {
 
     const { host, user, password, database } = req.body;
     try {
-        // 1. Записваме на диска в .env файла и рестартираме MySQL връзката
-        db.saveConfigToDisk({ host, user, password, database });
-
-        // 2. ЖЕЛЕЗНО И ВИНАГИ: Викаме лога, като му подаваме директно хванатата сесия!
-        // По този начин рестартът на MySQL няма как да изтрие ID-то на оператора от паметта
+        // Най-правилно, първо в старата БД, кай я е сменил, после сменяме
         storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_CONNECTION_DB);
 
-        res.json({ success: true, message: 'Настройките бяха записани на ДИСКА перманентно!' });
+        // Записваме на диска в .env файла и рестартираме MySQL връзката
+        db.saveConfigToDisk({ host, user, password, database });
+
+        delete activeSessions[clientIp];
+        console.log(`🧹 Автоматично изчистена стара сесия за IP: ${clientIp}`);
+
+        // Връщаме отговор с флаг requiresLogin
+        res.json({ 
+            success: true, 
+            message: 'Настройките са записани перманентно! Базата данни е променена. Моля, влезте наново.',
+            requiresLogin: true 
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
+});
+
+// API за извличане на системния лог с LEFT JOIN
+app.get('/api/reports/system-log', (req, res) => {
+    // Проверка за сигурност през нашето Middleware по IP адрес
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    if (!db.checkDbStatus()) return res.status(503).json({ error: 'Няма връзка с базата данни' });
+
+    // Твоята класическа C++ SQL заявка
+    const queryText = `
+        SELECT accounts_system.id_pc, operators.name_operator, accounts_system.date_time, accounts_system.id_message 
+        FROM accounts_system 
+        LEFT JOIN operators USING(id_operator) 
+        ORDER BY accounts_system.date_time
+    `;
+
+    const connection = db.getConn();
+    connection.query(queryText, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Превеждаме id_message към твоите IDS_... текстове преди да ги пратим към HTML
+        const formattedResults = results.map(row => {
+            const dateObj = new Date(row.date_time);
+            return {
+                id_pc: row.id_pc,
+                name_operator: row.name_operator || 'Система', 
+                date_time_raw: row.date_time, // ISO дата за Excel и ВЯРНО сортиране
+                date_time_bg: dateObj.toLocaleString('bg-BG'), // Текст за екрана
+                message_text: CONFIG_MESSAGES_TEXT[row.id_message] || CONFIG_MESSAGES_TEXT["UNKNOWN"]
+            };
+        });
+
+        res.json(formattedResults);
+    });
 });
 
 // Универсална функция за запис на системен лог в MySQL

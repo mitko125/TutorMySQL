@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Системен лог на събитията</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <script src="../js/menu.js"></script>
+    <style>
+        .report-container { width: 95%; margin: 20px auto; padding: 20px; border: 1px solid #0056b3; background: #fff; }
+        .action-bar { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* КОНТЕЙНЕР ЗА ВЕРТИКАЛЕН И ХОРИЗОНТАЛЕН СКРОЛ (Макс височина 500px за тест) */
+        .table-wrapper { width: 100%; max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
+        
+        .grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 10px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
+        
+        /* 📌 ФИКСИРАНО ЗАГЛАВИЕ (STICKY HEADER) - Остава бетон отгоре при вертикален скрол! */
+        .grid-table th { background-color: #0056b3; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
+        .grid-table th:hover { background-color: #004494; }
+        .grid-table tr:nth-child(even) { background-color: #f2f7fc; }
+        
+        .resizer { position: absolute; right: 0; top: 0; width: 3px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; }
+        .resizer:hover { background-color: #0056b3; }
+        .sort-icon { inline-size: 15px; display: inline-block; text-align: center; margin-left: 5px; }
+        h2 { color: #333; margin-top: 0; }
+    </style>
+</head>
+<body>
+
+<div class="report-container">
+    <h2>📋 Отчет: Системен лог на събитията</h2>
+    <hr style="border-color: #0056b3; margin-bottom: 15px;">
+
+    <div class="action-bar">
+        <span id="rowCount" style="font-weight: bold; color: #0056b3;">Зареждане на данни...</span>
+        <button id="exportCsvBtn" class="btn-sync" style="padding: 8px 15px; background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;">📥 Експорт към Excel (CSV)</button>
+    </div>
+
+    <!-- Обвиваме таблицата в новия скролиращ контейнер -->
+    <div class="table-wrapper">
+        <table class="grid-table" id="logTable">
+            <thead>
+                <tr>
+                    <!-- Преместихме onclick вътре в текстовия контейнер, за да не го застъпва мишката -->
+                    <th style="width: 80px;">
+                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(0)">№ PC <span class="sort-icon" id="sortIcon0">↕</span></div>
+                        <div class="resizer"></div>
+                    </th>
+                    <th style="width: 150px;">
+                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(1)">Оператор <span class="sort-icon" id="sortIcon1">↕</span></div>
+                        <div class="resizer"></div>
+                    </th>
+                    <th style="width: 220px;">
+                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(2)">Дата / Час <span class="sort-icon" id="sortIcon2">↕</span></div>
+                        <div class="resizer"></div>
+                    </th>
+                    <th style="width: 350px;">
+                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(3)">Извършено събитие / Настройка <span class="sort-icon" id="sortIcon3">↕</span></div>
+                        <div class="resizer"></div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Данните идват тук -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let logData = []; 
+let sortDirections = [false, false, false, false]; 
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/reports/system-log')
+        .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+        .then(data => {
+            logData = data;
+            document.getElementById('rowCount').textContent = `Намерени записи: ${logData.length}`;
+            renderTable(logData);
+            initResizableColumns(); 
+        })
+        .catch(err => {
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:red; font-weight:bold;">Грешка при зареждане или нямате права!</td></tr>';
+        });
+});
+
+function renderTable(data) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Няма налични записи.</td></tr>';
+        return;
+    }
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${row.id_pc}</td>
+            <td style="font-weight: bold; color: #0056b3;">${row.name_operator}</td>
+            <td>${row.date_time_bg}</td>
+            <td>${row.message_text}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// 🔄 СОРТИРАНЕ - СЕГА ВЕЧЕ РАБОТИ НА 100% БЕЗ ГРЕШКА
+function sortTable(columnIndex) {
+    sortDirections[columnIndex] = !sortDirections[columnIndex];
+    const isAscending = sortDirections[columnIndex];
+
+    for(let i=0; i<4; i++) document.getElementById(`sortIcon${i}`).textContent = '↕';
+    document.getElementById(`sortIcon${columnIndex}`).textContent = isAscending ? '▲' : '▼';
+
+    logData.sort((a, b) => {
+        let valA, valB;
+        
+        if (columnIndex === 0) { 
+            valA = Number(a.id_pc); 
+            valB = Number(b.id_pc); 
+        } else if (columnIndex === 1) { 
+            valA = a.name_operator.toLowerCase(); 
+            valB = b.name_operator.toLowerCase(); 
+        } else if (columnIndex === 2) { 
+            valA = new Date(a.date_time_raw).getTime(); 
+            valB = new Date(b.date_time_raw).getTime(); 
+        } else if (columnIndex === 3) { 
+            valA = a.message_text.toLowerCase(); 
+            valB = b.message_text.toLowerCase(); 
+        }
+
+        if (valA < valB) return isAscending ? -1 : 1;
+        if (valA > valB) return isAscending ? 1 : -1;
+        return 0;
+    });
+
+    renderTable(logData);
+}
+
+// Экспорт CSV
+document.getElementById('exportCsvBtn').addEventListener('click', async () => {
+    if (logData.length === 0) return alert('Няма данни за експорт!');
+    let csvContent = "Номер PC;Оператор;Дата и Час;Извършено събитие\n";
+    logData.forEach(row => {
+        csvContent += `${row.id_pc};${row.name_operator};${row.date_time_bg};${row.message_text}\n`;
+    });
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const csvBytes = new TextEncoder().encode(csvContent);
+    const fileData = new Blob([bom, csvBytes], { type: "text/csv;charset=utf-8;" });
+    const fileName = `System_Log_${new Date().toISOString().slice(0,10)}.csv`;
+
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: fileName,
+                types: [{ description: 'Excel CSV (*.csv)', accept: { 'text/csv': ['.csv'] } }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(fileData);
+            await writable.close();
+            return;
+        } catch (err) { if (err.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(fileData);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+
+// Преоразмеряване
+function initResizableColumns() {
+    const table = document.getElementById('logTable');
+    const cols = table.querySelectorAll('th');
+    cols.forEach(col => {
+        const resizer = col.querySelector('.resizer');
+        if (!resizer) return;
+        let startX, startWidth;
+        resizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); 
+            startX = e.pageX;
+            startWidth = col.offsetWidth;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        function onMouseMove(e) {
+            const width = startWidth + (e.pageX - startX);
+            if (width > 60) col.style.width = width + 'px';
+        }
+        function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+    });
+}
+</script>

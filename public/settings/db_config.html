@@ -85,6 +85,12 @@ document.getElementById('saveConfigBtn').addEventListener('click', () => {
     .then(data => {
         alert(data.message);
         window.location.reload(); // Презареждаме страницата, за да се види новия статус
+        // Ако бакендът е изчистил сесията заради новата база, го пращаме на входа кротко
+        if (data.requiresLogin) {
+            window.location.href = '../index.html';
+        } else {
+            window.location.reload(); // За временния тест просто презареждаме
+        }
     });
 });
 </script>
