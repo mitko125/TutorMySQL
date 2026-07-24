@@ -75,11 +75,12 @@ document.getElementById('saveConfigBtn').addEventListener('click', () => {
     const btnText = document.getElementById('saveConfigBtn').textContent;
 
     const endpoint = (btnText === 'Запиши на ДИСКА перманентно') ? '/api/mysql/save' : '/api/mysql/test';
+    let idPC = localStorage.getItem('id_pc') || '0';
     
     fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host, user, password, database })
+        body: JSON.stringify({ host, user, password, database, idPC })
     })
     .then(res => res.json())
     .then(data => {

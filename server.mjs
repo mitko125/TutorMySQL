@@ -85,24 +85,30 @@ app.use('/reports', checkAdminRights);
 // Споделяне на статичните HTML/CSS/JS файлове от папка "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Обновяваме вземането на оператори с автоматично чистене
+// В server.mjs -> Обновяваме вземането на оператори с проверка за жива сесия
 app.get('/api/operators', (req, res) => {
     const clientIp = req.ip;
-    
-    // АВТОМАТИЧНО ЧИСТЕНЕ: Щом потребителят е на началния екран и зарежда менюто,
-    // изтриваме старата му сесия в бакенда, за да няма застъпване на права!
-    if (activeSessions[clientIp]) {
-        delete activeSessions[clientIp];
-        console.log(`🧹 Автоматично изчистена стара сесия за IP: ${clientIp}`);
-    }
+    const session = activeSessions[clientIp];
 
     if (!db.checkDbStatus()) {
         return res.status(503).json({ error: 'Няма връзка с базата данни' });
     }
+
+    // АКО ИМА ЖИВА СЕСИЯ: Връщаме информация за текущия оператор веднага!
+    if (session) {
+        console.log(`ℹ️ Открита жива сесия за IP: ${clientIp} (${session.name}). Прескачаме логин екрана.`);
+        return res.json({ 
+            hasSession: true, 
+            name: session.name, 
+            privilege: session.privilege 
+        });
+    }
+
+    // АКО НЯМА СЕСИЯ: Вадим чистия списък от MySQL за падащото меню
     const connection = db.getConn();
     connection.query('SELECT id_operator, name_operator, privilege FROM operators', (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(results);
+        res.json(results); // Връща масива с оператори
     });
 });
 
@@ -128,7 +134,8 @@ app.post('/api/login', (req, res) => {
                 name: operator.name_operator,
                 privilege: operator.privilege,
                 old_clientIp: null,
-                old_typeConfig: null
+                old_typeConfig: null,
+                old_id_pc: null
             };
             res.json({ success: true, privilege: operator.privilege, name: operator.name_operator });
         } else {
@@ -172,10 +179,12 @@ app.post('/api/mysql/save', (req, res) => {
         return res.status(403).json({ success: false, message: 'Нямате права!' });
     }
 
-    const { host, user, password, database } = req.body;
+    const { host, user, password, database, idPC } = req.body;
     try {
+        const id_pc = parseInt(idPC) || 0;
+
         // Най-правилно, първо в старата БД, кай я е сменил, после сменяме
-        storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_CONNECTION_DB);
+        storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_CONNECTION_DB, id_pc);
 
         // Записваме на диска в .env файла и рестартираме MySQL връзката
         db.saveConfigToDisk({ host, user, password, database });
@@ -229,33 +238,78 @@ app.get('/api/reports/system-log', (req, res) => {
     });
 });
 
+// В server.mjs -> Скрит ендпоинт за логване на промяната на работно място
+app.post('/api/mysql/log-station', (req, res) => {
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    const { eventType, oldPC } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: 'Няма активна сесия' });
+    }
+
+    const old_id_pc = parseInt(oldPC) || 0;
+
+    // Записваме в MySQL със стария номер работно място
+    storeDataConfigMessage(session, eventType, old_id_pc);
+    
+    res.json({ success: true });
+});
+
+// В server.mjs -> Обновяваме маршрута за изтриване с твърдо подаване на PC
+app.post('/api/mysql/delete-logs', (req, res) => {
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    
+    // Вземаме номера на PC, изпратен сигурно от браузъра
+    const { idPC } = req.body;
+
+    if (!session || session.privilege !== PRIVILEGE.CONFIG) {
+        return res.status(403).json({ success: false, message: 'Нямате права!' });
+    }
+
+    const connection = db.getConn();
+    connection.query('TRUNCATE TABLE accounts_system', (err) => {
+        if (err) {
+            console.error('🚨 Грешка при TRUNCATE: ', err.message);
+            return res.status(500).json({ success: false, message: err.message });
+        }
+        
+        console.log('🗑️ Таблицата accounts_system беше изчистена основно (TRUNCATE).');
+
+        // Нулираме филтъра
+        session.old_typeConfig = null; 
+
+        const id_pc = parseInt(idPC) || 0;
+        storeDataConfigMessage(session, CONFIG_MESSAGES._CLEAR_ACCOUNTS, id_pc);
+
+        res.json({ success: true });
+    });
+});
+
+
 // Универсална функция за запис на системен лог в MySQL
-function storeDataConfigMessage(session, typeConfig) {
-    // Вземаме ID-то на оператора от сесията. Ако няма сесия, чак тогава е 0
+function storeDataConfigMessage(session, typeConfig, id_pc) {
     const idOperator = session ? session.id_operator : 0; 
 
-    // ЖЕЛЯЗНАТА ПРОВЕРКА НА СТАРИЯ МАЙСТОР:
-    // Проверяваме директно вътре в обекта на сесията дали събитието се повтаря последователно
-    if (session && session.old_typeConfig === typeConfig) {
-        console.log(`⏳ [ФИЛТЪР] Игнориран повтарящ се запис за събитие ${typeConfig} за Оператор №${idOperator}`);
+    if (session && session.old_typeConfig === typeConfig && session.old_id_pc === id_pc) {
+        console.log(`⏳ [ФИЛТЪР] Игнориран повтарящ се запис за събитие ${typeConfig} от PC №${id_pc}`);
         return; 
     }
 
-    const idPC = 1; // Докато не направим station.html
     const connection = db.getConn();
     const queryText = 'INSERT INTO accounts_system(id_pc, id_operator, id_message, date_time) VALUES (?, ?, ?, NOW())';
     
-    connection.query(queryText, [idPC, idOperator, typeConfig], (err, results) => {
+    connection.query(queryText, [id_pc, idOperator, typeConfig], (err, results) => {
         if (err) {
             console.error('🚨 Грешка при запис в accounts_system: ', err.message);
             return;
         }
-        
-        // СЛЕД УСПЕШЕН ЗАПИС: Записваме в паметта на текущата сесия предходното събитие
         if (session) {
             session.old_typeConfig = typeConfig;
+            session.old_id_pc = id_pc;
         }
-        console.log(`💾 [УСПЕШЕН ЛОГ] Записано събитие ${typeConfig} за Оператор №${idOperator}`);
+        console.log(`💾 [УСПЕШЕН ЛОГ] Записано събитие ${typeConfig} за Оператор №${idOperator} от PC №${id_pc}`);
     });
 }
 

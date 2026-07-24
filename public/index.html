@@ -50,11 +50,13 @@
 </div>
 
 <script>
+// В public/index.html -> Променяме старта, за да проверява за жива сесия
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get('error');
     const statusMsg = document.getElementById('statusMessage');
     
+    // Улавяме грешките от Middleware контрольорa
     if (errorParam === 'no_rights') {
         statusMsg.textContent = '❌ Достъпът е забранен! Нямате административни права.';
         statusMsg.style.color = 'red';
@@ -63,15 +65,30 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMsg.style.color = 'orange';
     }
 
-    // Проверяваме статуса на базата данни
+    // 1. ПЪРВО ПРОВЕРЯВАМЕ СТАТУСА НА БАЗАТА ДАННИ
     fetch('/api/db-status')
         .then(res => res.json())
         .then(status => {
-            if (status.online) {
-                // Базата е онлайн - пълним менюто с оператори
-                fetch('/api/operators')
-                    .then(res => res.json())
-                    .then(data => {
+            if (!status.online) {
+                // Авария: няма база, пренасочваме директно към конфигурацията
+                window.location.href = 'settings/db_config.html';
+                return;
+            }
+
+            // 2. БАЗАТА Е ОНЛАЙН: Проверяваме дали текущото IP вече има влязъл оператор (Жива сесия)
+            fetch('/api/operators')
+                .then(res => res.json())
+                .then(data => {
+                    // УЛОВКА: Ако бакендът открие жива сесия, той няма да ни върне масив с оператори,
+                    // а ще върне обект с данни за вписания човек: { hasSession: true, name: '...', privilege: ... }
+                    if (data.hasSession) {
+                        // Потребителят е вписан! Скриваме логина и показваме направо работното меню
+                        document.getElementById('loginSection').style.display = 'none';
+                        document.getElementById('welcomeSection').style.display = 'block';
+                        document.getElementById('welcomeText').textContent = `Оператор: ${data.name} (Ниво на привилегия: ${data.privilege})`;
+                        document.getElementById('mainMenu').style.display = 'block';
+                    } else {
+                        // НЯМА ЖИВА СЕСИЯ: Показваме стандартното падащо меню за избор на оператори
                         const select = document.getElementById('operatorSelect');
                         select.innerHTML = '<option value="">-- Изберете оператор --</option>';
                         data.forEach(op => {
@@ -80,11 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             opt.textContent = `${op.name_operator}`;
                             select.appendChild(opt);
                         });
-                    });
-            } else {
-                // Авария: няма база, пренасочваме директно към конфигурацията
-                window.location.href = 'settings/db_config.html';
-            }
+                    }
+                });
         });
 });
 
