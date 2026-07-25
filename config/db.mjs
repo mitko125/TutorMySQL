@@ -2,6 +2,7 @@ import mysql from 'mysql';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import iconv from 'iconv-lite';
 
 dotenv.config();
 
@@ -10,7 +11,23 @@ let dbConfig = {
     user     : process.env.DB_USER || 'root',
     password : process.env.DB_PASS || '', 
     database : process.env.DB_NAME || 'StreetLights',
-    charset  : 'cp1251'
+    // charset  : 'cp1251', // това не ми помогна, помогна долния ред в едната посока, а в другата toHex(...)
+    // УМЕН ГЛОБАЛЕН ФИЛТЪР: Извлича суровите байтове и автоматично ги превежда в UTF-8 стринг
+    typeCast: function (field, next) {
+        if (field.type === 'VAR_STRING' || field.type === 'STRING' || field.type === 'BLOB') {
+            const buf = field.buffer();
+            if (buf) {
+                // Използваме глобалния TextDecoder, за да върнем нормален JavaScript стринг
+                let win1251 = new TextDecoder('windows-1251').decode(buf);
+                // console.log(`field.name  ${field.name}`);
+                // console.log(`field.type  ${field.type}`);
+                // console.log(`win1251  ${win1251}`); 
+                return win1251;
+            }
+            return '';
+        }
+        return next();
+    }
 };
 
 let connection;
@@ -64,3 +81,5 @@ export function getCurrentConfig() {
     };
 }
 
+// за работа със стария MySQL от 2000г., това е за текст на кирилица от http към MySQL 'cp1251'
+export const toHex = (str) => '0x' + iconv.encode(str, 'win1251').toString('hex');

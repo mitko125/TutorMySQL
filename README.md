@@ -12,6 +12,7 @@
 npm install mysql
 npm install express
 npm install dotenv
+npm install iconv-lite
 ```
 
 Стартиране:

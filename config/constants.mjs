@@ -1,12 +1,18 @@
 // config/constants.mjs
 
+export const APP_PORT = 8000;
+
 export const PRIVILEGE = Object.freeze({
     OPERATOR: 0,
     SERVIZ: 1,
     CONFIG: 2
 });
 
-export const APP_PORT = 8000;
+export const PRIVILEGE_TEXT = Object.freeze({
+    [PRIVILEGE.OPERATOR]: "Операторски",
+    [PRIVILEGE.SERVIZ]: "Сервизни",
+    [PRIVILEGE.CONFIG]: "Административни"
+});
 
 // Твоят C++ enum за събитията, преведен на JavaScript
 export const CONFIG_MESSAGES = Object.freeze({
