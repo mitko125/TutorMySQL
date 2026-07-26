@@ -13,12 +13,12 @@
         .table-wrapper { width: 100%; max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
         
         .grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 10px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
+        .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
         
         /* 📌 ФИКСИРАНО ЗАГЛАВИЕ (STICKY HEADER) - Остава бетон отгоре при вертикален скрол! */
         .grid-table th { background-color: #0056b3; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
         .grid-table th:hover { background-color: #004494; }
-        .grid-table tr:nth-child(even) { background-color: #f2f7fc; }
+        .grid-table tr:nth-child(even) { background-color: #f9fbfd; }
         
         .resizer { position: absolute; right: 0; top: 0; width: 3px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; }
         .resizer:hover { background-color: #0056b3; }
@@ -43,22 +43,10 @@
             <thead>
                 <tr>
                     <!-- Преместихме onclick вътре в текстовия контейнер, за да не го застъпва мишката -->
-                    <th style="width: 80px;">
-                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(0)">№ PC <span class="sort-icon" id="sortIcon0">↕</span></div>
-                        <div class="resizer"></div>
-                    </th>
-                    <th style="width: 150px;">
-                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(1)">Оператор <span class="sort-icon" id="sortIcon1">↕</span></div>
-                        <div class="resizer"></div>
-                    </th>
-                    <th style="width: 220px;">
-                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(2)">Дата / Час <span class="sort-icon" id="sortIcon2">↕</span></div>
-                        <div class="resizer"></div>
-                    </th>
-                    <th style="width: 350px;">
-                        <div style="width: 100%; cursor: pointer;" onclick="sortTable(3)">Извършено събитие / Настройка <span class="sort-icon" id="sortIcon3">↕</span></div>
-                        <div class="resizer"></div>
-                    </th>
+                    <th style="width: 80px;"><div style="width: 100%; cursor: pointer;" onclick="sortTable(0)">№ PC <span class="sort-icon" id="sortIcon0">↕</span></div><div class="resizer"></div></th>
+                    <th style="width: 150px;"><div style="width: 100%; cursor: pointer;" onclick="sortTable(1)">Оператор <span class="sort-icon" id="sortIcon1">↕</span></div><div class="resizer"></div></th>
+                    <th style="width: 220px;"><div style="width: 100%; cursor: pointer;" onclick="sortTable(2)">Дата / Час <span class="sort-icon" id="sortIcon2">↕</span></div><div class="resizer"></div></th>
+                    <th style="width: 350px;"><div style="width: 100%; cursor: pointer;" onclick="sortTable(3)">Извършено събитие / Настройка <span class="sort-icon" id="sortIcon3">↕</span></div><div class="resizer"></div></th>
                 </tr>
             </thead>
             <tbody id="tableBody">
@@ -79,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logData = data;
             document.getElementById('rowCount').textContent = `Намерени записи: ${logData.length}`;
             renderTable(logData);
-            initResizableColumns(); 
+            initResizableColumns();
         })
         .catch(err => {
             document.getElementById('tableBody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:red; font-weight:bold;">Грешка при зареждане или нямате права!</td></tr>';
@@ -181,7 +169,7 @@ function initResizableColumns() {
         let startX, startWidth;
         resizer.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            e.stopPropagation(); 
+            e.stopPropagation();
             startX = e.pageX;
             startWidth = col.offsetWidth;
             document.addEventListener('mousemove', onMouseMove);
@@ -198,3 +186,5 @@ function initResizableColumns() {
     });
 }
 </script>
+</body>
+</html>

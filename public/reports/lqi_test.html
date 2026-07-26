@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Тест LQI - Качество на Jennic Mesh мрежата</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <script src="../js/menu.js"></script>
+    <style>
+        .report-container { width: 95%; margin: 20px auto; padding: 20px; border: 1px solid #0056b3; background: #fff; }
+        .action-bar { margin-bottom: 15px; display: flex; gap: 15px; align-items: center; background-color: #f2f7fc; padding: 10px; border: 1px solid #0056b3; }
+        
+        /* КОНТЕНЕР ЗА СКРОЛ - Оптимизиран */
+        .table-wrapper { width: 100%; max-height: 550px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; padding-bottom: 5px; }
+        
+        /* ТАБЛИЦА - Променена на table-layout: auto за автоматичен размер */
+        .grid-table { width: 100%; border-collapse: collapse; table-layout: auto; min-width: max-content; }
+        .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
+        
+        /* Заглавна част (Фиксиран ред най-горе) */
+        .grid-table th { background-color: #0056b3; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
+        .grid-table th:hover { background-color: #004494; }
+        .grid-table tr:nth-child(even) { background-color: #f9fbfd; }
+        
+        /* Ресайзер елемент */
+        .resizer { position: absolute; right: 0; top: 0; width: 4px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; background-color: transparent; }
+        .resizer:hover { background-color: transparent; }
+        .sort-icon { inline-size: 15px; display: inline-block; text-align: center; margin-left: 5px; }
+        h2 { color: #333; margin-top: 0; }
+        select { padding: 6px; font-weight: bold; border: 1px solid #ccc; }
+
+        /* Дясно подравнени колони с цифри */
+        table td:nth-child(1),
+        table td:nth-child(2),
+        table td:nth-child(4),
+        table td:nth-child(5),
+        table td:nth-child(6),
+        table td:nth-child(8),
+        table td:nth-child(9),
+        table td:nth-child(10),
+        table td:nth-child(12),
+        table td:nth-child(14) {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="report-container">
+    <h2>📡 Качество на Jennic mesh мрежата (Тест LQI)</h2>
+    <hr style="border-color: #0056b3; margin-bottom: 15px;">
+
+    <!-- ГОРНАТА ЛЕНТА - ДИАЛОГ ЗА ИЗБОР НА ТРАФОПОСТ -->
+    <div class="action-bar">
+        <label style="font-weight:bold; color:#0056b3;">Изберете обект (Трафопост):</label>
+        <select id="hardwareSelect">
+            <option value="">Зареждане на обекти...</option>
+        </select>
+        
+        <button id="runTestBtn" class="btn-sync" style="padding: 6px 15px; background-color: #0056b3; color: white; border: none; cursor: pointer; font-weight: bold;">Стартирай LQI Тест</button>
+        <button id="exportCsvBtn" class="btn-sync" style="padding: 6px 15px; background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; margin-left: auto;">📥 Експорт към Excel (CSV)</button>
+    </div>
+
+    <!-- ТАБЛИЦАТА С ИНТЕГРИРАН COLGROUP ЗА ПРЕОРАЗМЕРЯВАНЕТО -->
+    <div class="table-wrapper">
+        <table class="grid-table" id="lqiTable">
+            <colgroup>
+                <col style="width: 30px;" />
+                <col style="width: 30px;" />
+                <col style="width: 80px;" />
+                <col style="width: 30px;" />
+                <col style="width: 35px;" />
+                <col style="width: 30px;" />
+                <col style="width: 80px;" />
+                <col style="width: 30px;" />
+                <col style="width: 35px;" />
+                <col style="width: 30px;" />
+                <col style="width: 120px;" />
+                <col style="width: 30px;" />
+                <col style="width: 70px;" />
+                <col style="width: 45px;" />
+                <col style="width: 70px;" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th style="text-align: center;" colspan="4">Рутер / Предходен осветител</th>
+                    <th style="text-align: center;" colspan="10">Следващ осветител</th>
+                </tr>
+                <tr>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(0)">№ <span class="sort-icon" id="sortIcon0">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(1)">№ <span class="sort-icon" id="sortIcon1">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(2)">MAC адрес <span class="sort-icon" id="sortIcon2">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(3)">LQI <span class="sort-icon" id="sortIcon3">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(4)">PER% <span class="sort-icon" id="sortIcon4">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(5)">№ <span class="sort-icon" id="sortIcon5">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(6)">MAC адрес <span class="sort-icon" id="sortIcon6">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(7)">LQI <span class="sort-icon" id="sortIcon7">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(8)">PER% <span class="sort-icon" id="sortIcon8">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(9)">Ниво <span class="sort-icon" id="sortIcon9">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(10)">Улица <span class="sort-icon" id="sortIcon10">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(11)">№ <span class="sort-icon" id="sortIcon11">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(12)">Последна връзка <span class="sort-icon" id="sortIcon12">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(13)">Раб.часове <span class="sort-icon" id="sortIcon13">↕</span></div><div class="resizer"></div></th>
+                    <th><div style="width: 100%; cursor: pointer;" onclick="sortTable(14)">Проверена <span class="sort-icon" id="sortIcon14">↕</span></div><div class="resizer"></div></th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="15" style="text-align:center; font-weight:bold;">Моля, изберете обект и стартирайте теста.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let gridRows = [];
+let sortDirections = Array(15).fill(false);
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Наливане на обектите в падащото меню от hardwares
+    fetch('/api/mysql/hardwares')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('hardwareSelect');
+            select.innerHTML = '<option value="">-- Изберете от списъка --</option>';
+            data.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h.id_hardware;
+                // Пресъздаваме визуализацията от твоята картинка
+                opt.textContent = `№${h.id_hardware} - ${h.city_name}, ${h.address_name}`;
+                select.appendChild(opt);
+            });
+        });
+});
+
+// Задействане на рекурсивния LQI тест
+document.getElementById('runTestBtn').addEventListener('click', () => {
+    const id_hardware = document.getElementById('hardwareSelect').value;
+    if (!id_hardware) return alert('Моля, изберете обект от списъка!');
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; color:#0056b3; font-weight:bold;">🔄 Провежда се асинхронен разпит на Jennic mesh мрежата... Моля, изчакайте!</td></tr>';
+
+    fetch('/api/reports/lqi-run', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json' // ТОВА КАЗВА НА EXPRESS КАК ДА ПРОЧЕТЕ ДАННИТЕ!
+        },
+        body: JSON.stringify({ 
+            id_hardware: parseInt(id_hardware)
+        })
+    })
+    .then(res => { if(!res.ok) throw new Error(); return res.json(); })
+    .then(data => {
+        if (data.success) {
+            gridRows = data.rows;
+            renderTable(gridRows);
+            initResizableColumns();
+        } else {
+            alert('Грешка: ' + data.message);
+        }
+    })
+    .catch(() => {
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; color:red; font-weight:bold;">Грешка при връзка със сървъра или липса на права!</td></tr>';
+    });
+});
+
+function renderTable(data) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;">Няма намерени съседни улични осветители за този координатор.</td></tr>';
+        return;
+    }
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        tr.innerHTML = `
+            <td><strong>${row.id ?? ""}</strong></td>
+            <td>${row.prev?.id ?? ""}</td>
+            <td>${row.prev?.mac ?? ""}</td>
+            <td>${row.prev?.lqi ?? ""}</td>
+            <td>${row.prev?.per ?? ""}</td>
+            <td>${row.next?.id ?? ""}</td>
+            <td>${row.next?.mac ?? ""}</td>
+            <td>${row.next?.lqi ?? ""}</td>
+            <td>${row.next?.per ?? ""}</td>
+            <td>${row.next?.depth ?? ""}</td>
+            <td>${row.next?.street ?? ""}</td>
+            <td>${row.next?.street_number ?? ""}</td>
+            <td>${row.next?.LastContacts ?? ""}</td>
+            <td>${row.next?.work_hours ?? ""}</td>
+            <td>${row.next?.LastTest ?? ""}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// БРОНИРАНО СОРТИРАНЕ ПО ВСИЧКИ 15 КОЛОНИ
+function sortTable(idx) {
+    sortDirections[idx] = !sortDirections[idx];
+    const isAsc = sortDirections[idx];
+
+    for(let i=0; i<15; i++) document.getElementById(`sortIcon${i}`).textContent = '↕';
+    document.getElementById(`sortIcon${idx}`).textContent = isAsc ? '▲' : '▼';
+
+    gridRows.sort((a, b) => {
+        let valA, valB;
+        if (idx === 0) { valA = Number(a.id); valB = Number(b.id); }
+        else if (idx === 1) { valA = Number(a.prev.id); valB = Number(b.prev.id); }
+        else if (idx === 2) { valA = a.prev.mac; valB = b.prev.mac; }
+        else if (idx === 3) { valA = Number(a.prev.lqi); valB = Number(b.prev.lqi); }
+        else if (idx === 4) { valA = Number(a.prev.per); valB = Number(b.prev.per); }
+        else if (idx === 5) { valA = Number(a.next.id); valB = Number(b.next.id); }
+        else if (idx === 6) { valA = a.next.mac; valB = b.next.mac; }
+        else if (idx === 7) { valA = Number(a.next.lqi); valB = Number(b.next.lqi); }
+        else if (idx === 8) { valA = Number(a.next.per); valB = Number(b.next.per); }
+        else if (idx === 9) { valA = Number(a.next.depth); valB = Number(b.next.depth); }
+        else if (idx === 10) { valA = a.next.street.toLowerCase(); valB = b.next.street.toLowerCase(); }
+        else if (idx === 11) { valA = Number(a.next.street_number); valB = Number(b.next.street_number); }
+        else if (idx === 12) { valA = new Date(a.next.LastContacts).getTime() || 0; valB = new Date(b.next.LastContacts).getTime() || 0; }
+        else if (idx === 13) { valA = Number(a.next.work_hours); valB = Number(b.next.work_hours); }
+        else if (idx === 14) { valA = new Date(a.next.LastTest).getTime() || 0; valB = new Date(b.next.LastTest).getTime() || 0; }
+
+        if (valA < valB) return isAsc ? -1 : 1;
+        if (valA > valB) return isAsc ? 1 : -1;
+        return 0;
+    });
+    renderTable(gridRows);
+}
+
+// ЕКСПОРТ CSV СЪС СПАСИТЕЛЕН ПОЯС
+document.getElementById('exportCsvBtn').addEventListener('click', async () => {
+    if (gridRows.length === 0) return alert('Няма данни за експорт!');
+    
+    const CSV_DELIMITER = ';';
+    const CSV_LINE_BREAK = '\r\n';
+
+    // Сглобяваме заглавния ред с точни имена на колони
+    let csv = `id${CSV_DELIMITER}prev_id${CSV_DELIMITER}prev_mak${CSV_DELIMITER}prev_lqi${CSV_DELIMITER}prev_per${CSV_DELIMITER}` +
+        `next_id${CSV_DELIMITER}next_mak${CSV_DELIMITER}next_lqi${CSV_DELIMITER}next_per${CSV_DELIMITER}` +
+        `depth${CSV_DELIMITER}street${CSV_DELIMITER}street_number${CSV_DELIMITER}LastContacts${CSV_DELIMITER}work_hours${CSV_DELIMITER}LastTest${CSV_DELIMITER}` +
+        `${CSV_LINE_BREAK}`;
+    
+    // Пълним редовете с точка и запетая (;), за да се отворят в Excel директно в колони
+    gridRows.forEach(row => {
+        csv += `${row.id}${CSV_DELIMITER}${row.prev.id || ""}${CSV_DELIMITER}${row.prev.mac}${CSV_DELIMITER}${row?.prev?.lqi ?? ''}${CSV_DELIMITER}${row?.prev?.per ?? ''}${CSV_DELIMITER}` +
+            `${row.next.id || ""}${CSV_DELIMITER}${row.next.mac}${CSV_DELIMITER}${row?.next?.lqi ?? ''}${CSV_DELIMITER}${row?.next?.per ?? ''}${CSV_DELIMITER}` +
+            `${row?.next?.depth ?? ''}${CSV_DELIMITER}${row?.next?.street ?? ''}${CSV_DELIMITER}${row?.next?.street_number ?? ''}${CSV_DELIMITER}` +
+            `${row?.next?.LastContacts ?? ''}${CSV_DELIMITER}${row?.next?.work_hours ?? ''}${CSV_DELIMITER}${row?.next?.LastTest ?? ''}${CSV_DELIMITER}` +
+            `${CSV_LINE_BREAK}`;
+    });
+
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // BOM маркер за перфектна кирилица
+    const blob = new Blob([bom, new TextEncoder().encode(csv)], { type: "text/csv;charset=utf-8;" });
+    const name = `LQI_Test_${new Date().toISOString().slice(0,10)}.csv`;
+
+    // 1. Модерен файлов диалог на Windows (DoModal аналог)
+    if (window.showSaveFilePicker) {
+        try {
+            const h = await window.showSaveFilePicker({ 
+                suggestedName: name, 
+                types: [{ description: 'Excel CSV (*.csv)', accept: { 'text/csv': ['.csv'] } }] 
+            });
+            const w = await h.createWritable(); 
+            await w.write(blob); 
+            await w.close(); 
+            return;
+        } catch (e) {
+            if (e.name === 'AbortError') return; // Потребителят е натиснал Отказ
+        }
+    }
+
+    // 2. 🛟 СПАСИТЕЛЕН ПОЯС: Автоматично изтегляне, ако сме по чисто IP адрес в мрежата
+    console.log('🛟 Задействан спасителен пояс за LQI експорт.');
+    const url = URL.createObjectURL(blob); 
+    const link = document.createElement("a"); 
+    link.href = url; 
+    link.download = name; 
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
+});
+
+// Преоразмеряване
+function initResizableColumns() {
+    const table = document.getElementById('lqiTable');
+    // Избираме th елементите САМО от втория ред
+    const cols = table.querySelectorAll('thead tr:nth-child(2) th');
+    // Взимаме всички col елементи от colgroup
+    const colElements = table.querySelectorAll('colgroup col');
+    
+    cols.forEach((col, index) => {
+        const resizer = col.querySelector('.resizer');
+        if (!resizer) return;
+        
+        let startX, startWidth, targetCol;
+        
+        resizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            startX = e.pageX;
+            
+            // Свързваме директно колоната от втория ред със съответния <col> таг
+            targetCol = colElements[index];
+            if (!targetCol) return; // Защита, ако col таговете са по-малко
+            
+            // Взимаме текущата ширина на th клетката
+            startWidth = col.offsetWidth;
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+        
+        function onMouseMove(e) {
+            const width = startWidth + (e.pageX - startX);
+            if (width > 60) {
+                // Променяме ширината на глобалния <col> елемент
+                targetCol.style.width = width + 'px';
+            }
+        }
+        
+        function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+    });
+}
+</script>
+</body>
+</html>

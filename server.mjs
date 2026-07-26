@@ -7,6 +7,7 @@ import { PRIVILEGE, APP_PORT } from './config/constants.mjs';
 import { CONFIG_MESSAGES } from './config/constants.mjs';
 import { CONFIG_MESSAGES_TEXT } from './config/constants.mjs';
 import { PRIVILEGE_TEXT } from './config/constants.mjs';
+import * as Jennic from './config/jennic.mjs';
 
 // Регенериране на __dirname, тъй като липсва в ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -86,7 +87,7 @@ app.use('/reports', checkAdminRights);
 // Споделяне на статичните HTML/CSS/JS файлове от папка "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
-// В server.mjs -> Обновяваме вземането на оператори с проверка за жива сесия
+// Обновяваме вземането на оператори с проверка за жива сесия
 app.get('/api/operators', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
@@ -113,7 +114,7 @@ app.get('/api/operators', (req, res) => {
     });
 });
 
-// Ендпойнт 2: Влизане в системата (Проверка на парола), При Влизане (Login) - заключваме правата в бакенда
+// Влизане в системата (Проверка на парола), При Влизане (Login) - заключваме правата в бакенда
 app.post('/api/login', (req, res) => {
     const { id_operator, password } = req.body;
     const clientIp = req.ip; // Вземаме IP адреса на компютъра
@@ -145,7 +146,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// В server.mjs - Ендпоинт за изчистване на сесията (Logout)
+// Ендпоинт за изчистване на сесията (Logout)
 app.post('/api/logout', (req, res) => {
     const clientIp = req.ip;
     if (activeSessions[clientIp]) {
@@ -155,7 +156,7 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// 1. Временен тест на MySQL в паметта
+// Временен тест на MySQL в паметта
 app.post('/api/mysql/test', (req, res) => {
     const { host, user, password, database } = req.body;
     db.updateConfigInMemory({ host, user, password, database });
@@ -166,7 +167,7 @@ app.post('/api/mysql/test', (req, res) => {
 app.get('/api/db-status', (req, res) => {
     res.json({ 
         online: db.checkDbStatus(),
-        config: db.getCurrentConfig() // Пращаме текущите настройки към HTML-а
+        config: db.getCurrentConfig()
     });
 });
 
@@ -233,7 +234,7 @@ app.get('/api/reports/system-log', (req, res) => {
     });
 });
 
-// В server.mjs -> Скрит ендпоинт за логване на промяната на работно място
+// Скрит ендпоинт за логване на промяната на работно място
 app.post('/api/mysql/log-station', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
@@ -251,7 +252,7 @@ app.post('/api/mysql/log-station', (req, res) => {
     res.json({ success: true });
 });
 
-// В server.mjs -> Обновяваме маршрута за изтриване с твърдо подаване на PC
+// Обновяваме маршрута за изтриване на лога с твърдо подаване на PC
 app.post('/api/mysql/delete-logs', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
@@ -276,7 +277,7 @@ app.post('/api/mysql/delete-logs', (req, res) => {
     });
 });
 
-// 1. Извличане на всички оператори (Само за Администратор)
+// Извличане на всички оператори (Само за Администратор)
 app.get('/api/mysql/operators-list', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
@@ -298,7 +299,7 @@ app.get('/api/mysql/operators-list', (req, res) => {
     });
 });
 
-// 2. СЪЗДАВАНЕ НА НОВ ОПЕРАТОР (INSERT)
+// СЪЗДАВАНЕ НА НОВ ОПЕРАТОР (INSERT)
 app.post('/api/mysql/operators-add', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
@@ -336,7 +337,7 @@ app.post('/api/mysql/operators-add', (req, res) => {
     });
 });
 
-// 3. ИЗТРИВАНЕ НА ОПЕРАТОР (DELETE)
+// ИЗТРИВАНЕ НА ОПЕРАТОР (DELETE)
 app.post('/api/mysql/operators-delete', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
@@ -371,6 +372,225 @@ app.post('/api/mysql/operators-delete', (req, res) => {
                 res.json({ success: true, message: 'Операторът е изтрит успешно!' });
             });
         });
+    });
+});
+
+// ЕНДПОЙНТ ЗА ЗАРЕЖДАНЕ НА ПАДАЩОТО МЕНЮ С ТРАФОПОСТОВЕ/ПЛАТКИ
+app.get('/api/mysql/hardwares', (req, res) => {
+    if (!db.checkDbStatus()) return res.status(503).json({ error: 'Няма връзка с БД' });
+    
+    const connection = db.getConn();
+    
+    // ПРЕМАХВАМЕ "WHERE stop = 0", за да извадим чистия списък от таблицата hardwares
+    connection.query('SELECT id_hardware, number_hardware, city_name, address_name, MAC_address FROM hardwares ORDER BY id_hardware', (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
+// ИСТИНСКОТО РЕКУРСИВНО РАБОТНО КОНЧЕ НА LQI ТЕСТА
+app.post('/api/reports/lqi-run', async (req, res) => {
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    if (!session || session.privilege < PRIVILEGE.SERVIZ) return res.status(403).json({ success: false, message: 'Нямате права за този отчет!' });
+
+    const { id_hardware } = req.body;
+
+    const connection = db.getConn();
+
+    // Извличаме IP адреса и главния MAC на избраната платка
+    connection.query('SELECT number_hardware, MAC_address FROM hardwares WHERE id_hardware = ?', [id_hardware], async (err, rows) => {
+        // Уловка: rows в mysql драйвера е масив, взимаме първия елемент rows[0]
+        if (err || !rows || rows.length === 0) {
+            return res.status(500).json({ success: false, message: 'Обектът не е намерен в базата данни!' });
+        }
+
+        const ip_address = rows[0].number_hardware; // например '192.168.1.79'
+        const root_mac = rows[0].MAC_address;
+
+        console.log(`📡 [LQI ТЕСТ] Стартирам разпит към ESP32 на адрес: http://${ip_address}`);
+
+        let gridRows = [];
+
+        // помощна за създаване на ред в таблицата
+        function NewRown(num_line, depth, MAC_address, lamp_number) {
+            let num_row = gridRows.length;
+            let lampObj = {
+                id: num_line.current,
+                prev: {
+                    id: lamp_number > 0 ? lamp_number : '',
+                    mac: MAC_address
+                },
+                next: {
+                    depth: depth
+                }
+            };
+            gridRows.push(lampObj);
+            num_line.current++;
+            return num_row;
+        }
+
+        // Желязна рекурсивна функция с изчакване (await)
+        async function TestLQI(num_line, depth, ip_address, Old_MAC_address, old_row, MAC_address, id_hardware, lamp_number) {
+            const MAX_NEIGHBOUR_BLOBS = 10;
+            let new_MAC_address = Array.from({ length: MAX_NEIGHBOUR_BLOBS }, () => new Uint8Array(16));
+            let u8LQI = new Uint8Array(MAX_NEIGHBOUR_BLOBS);
+            let u8PER = new Uint8Array(MAX_NEIGHBOUR_BLOBS);
+
+            let u16FirstTableEntry = 0;
+            let num_row = -1;
+            let get_blobs;
+            do {
+                get_blobs = 0;
+                let pu8Data = new Uint8Array(0);
+
+                // Създаваме обекта-контейнер (това замества слагането на '&' пред променливата)
+                let pu8DataRef = { current: pu8Data };
+
+                let i16Lenght;
+                let cou_error = 4;//2;//2;
+
+                do {
+                    const response = await Jennic.GetNeighbourTableBlobs(ip_address, MAC_address, id_hardware, u16FirstTableEntry, MAX_NEIGHBOUR_BLOBS);
+
+                    i16Lenght = response.bytesRead;
+                    pu8DataRef.current = response.data; // Обновяваме контейнера-указател с точно отрязания подмасив!
+
+                    cou_error--;
+                } while ((i16Lenght == Jennic.RECIVE_TIMEOUT) && (cou_error >= 0));
+
+                pu8Data = pu8DataRef.current;
+
+                switch (i16Lenght) {
+                    case Jennic.NO_ROUTER:
+                        {
+                            num_row = NewRown(num_line, depth - 1, MAC_address, lamp_number);
+                            let lamp = gridRows[num_row];
+                            lamp.next.mac = 'Няма рутер !';
+                        }
+                        return;
+                    case Jennic.NO_HARDWARE:
+                        {
+                            num_row = NewRown(num_line, depth - 1, MAC_address, lamp_number);
+                            let lamp = gridRows[num_row];
+                            lamp.next.mac = 'Няма хардуер !';
+                        }
+                        return;
+                    case Jennic.NO_CONNECT:
+                        {
+                            num_row = NewRown(num_line, depth - 1, MAC_address, lamp_number);
+                            let lamp = gridRows[num_row];
+                            lamp.next.mac = 'Не е свързана !';
+                        }
+                        return;
+                    default:
+                        if (i16Lenght < 0) {
+                            num_row = NewRown(num_line, depth - 1, MAC_address, lamp_number);
+                            let lamp = gridRows[num_row];
+                            lamp.next.mac = 'Грешка';
+                            return;
+                        } else if (i16Lenght > 0) {
+                            while (i16Lenght > 0) {
+                                let EntryIndex = pu8Data[0] << 8 | pu8Data[1];
+                                let BlowLenght = pu8Data[2];
+
+                                // pu8Data += 3;
+                                pu8Data = pu8Data.subarray(3);
+
+                                if (BlowLenght === 10) {
+                                    let macStr = "";
+
+                                    pu8Data[0] ^= 0x02;
+                                    for (let i = 0; i < 8; i++) {
+                                        let byteVal = pu8Data[i];
+
+                                        // 1. Горните 4 бита (data >>= 4;)
+                                        let highNibble = byteVal >> 4;
+                                        if (highNibble > 9) {
+                                            macStr += String.fromCharCode('A'.charCodeAt(0) + highNibble - 10);
+                                        } else {
+                                            macStr += String.fromCharCode('0'.charCodeAt(0) + highNibble);
+                                        }
+
+                                        // 2. Долните 4 бита (data &= 0x0F;)
+                                        let lowNibble = byteVal & 0x0F;
+                                        if (lowNibble > 9) {
+                                            macStr += String.fromCharCode('A'.charCodeAt(0) + lowNibble - 10);
+                                        } else {
+                                            macStr += String.fromCharCode('0'.charCodeAt(0) + lowNibble);
+                                        }
+                                    }
+                                    new_MAC_address[get_blobs] = macStr;
+                                    u8LQI[get_blobs] = pu8Data[8];
+                                    u8PER[get_blobs] = pu8Data[9];
+
+                                    // Инкрементиране на броячите
+                                    u16FirstTableEntry++;
+                                    get_blobs++;
+                                }
+                                pu8Data = pu8Data.subarray(BlowLenght);
+                                i16Lenght -= 3 + BlowLenght;
+                            }
+                            let i;
+                            for (i = 0; i < get_blobs; i++) {
+                                if (new_MAC_address[i] == Old_MAC_address) {
+                                    if (old_row >= 0) {
+                                        let lamp = gridRows[old_row];
+                                        lamp.prev.lqi = u8LQI[i];
+                                        lamp.prev.per = u8PER[i];
+                                    }
+                                    break;
+                                }
+                            }
+                            for (i = 0; i < get_blobs; i++) {
+                                if (new_MAC_address[i] != Old_MAC_address) {
+                                    const lampRows = await new Promise((resolve) => {
+                                        const com = `SELECT id_lamp, street_name, street_number, last_contact, work_hours, last_test FROM lamps WHERE MAC_address = '${new_MAC_address[i]}'`;
+                                        connection.query(com, (lampErr, results) => {
+                                            if (lampErr) resolve(null);
+                                            else resolve(results);
+                                        });
+                                    });
+
+                                    // Ако лампата съществува в базата данни
+                                    if (lampRows && lampRows.length > 0) {
+                                        const lampData = lampRows[0]; // Взимаме първия намерен ред
+
+                                        num_row = NewRown(num_line, depth, MAC_address, lamp_number);
+                                        let lamp = gridRows[num_row];
+
+                                        // Обновяваме lamp.next безопасно
+                                        const dateObj1 = new Date(lampData.last_contact);
+                                        const dateObj2 = new Date(lampData.last_test);
+                                        lamp.next = {
+                                            ...(lamp.next || {}), // Взима старите данни от next (ако ги има), ако ги няма - започва от празен обект
+                                            id: lampData.id_lamp,
+                                            mac: new_MAC_address[i],
+                                            lqi: u8LQI[i],
+                                            per: u8PER[i],
+                                            street: lampData.street_name,
+                                            street_number: lampData.street_number,
+                                            LastContacts: dateObj1.toLocaleString('bg-BG'),
+                                            work_hours: lampData.work_hours,
+                                            LastTest: dateObj1.toLocaleString('bg-BG')
+                                        };
+
+                                        await TestLQI(num_line, depth + 1, ip_address, MAC_address, num_row, new_MAC_address[i], id_hardware, lampData.id_lamp);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                }
+            } while ((get_blobs != 0) && (get_blobs == MAX_NEIGHBOUR_BLOBS));
+        }
+
+        // ИЗЧАКВАМЕ цялото дърво на mesh мрежата да се обходи докрай
+        let num_line_ref = { current: 1 };
+        await TestLQI(num_line_ref, 1, ip_address, '', -1, root_mac, id_hardware, -1);
+
+        // Чак когато рекурсията е приключила на 100%, връщаме пълния масив с редове към браузъра!
+        res.json({ success: true, rows: gridRows });
     });
 });
 
