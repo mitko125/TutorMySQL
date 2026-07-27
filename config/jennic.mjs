@@ -1,4 +1,4 @@
-export const HEADER_SIZE = 3;
+const HEADER_SIZE = 3;
 const VERSION = 0;
 
 const SOURCE_PORT = 0xD3ED;
@@ -34,14 +34,14 @@ const NO_SOCKET = -11;
 //0x01 16-bit signed integer
 //0x02 32-bit signed integer
 //0x03 64-bit signed integer
-const UI8 = 0x04; //8-bit unsigned integer
+//0x04 8-bit unsigned integer
 //0x05 16-bit unsigned integer
 //0x06 32-bit unsigned integer
 //0x07 64-bit unsigned integer
 //0x08 32-bit IEEE 754 float
 //0x09 64-bit IEEE 754 double
 //0x0A Text string
-const BBLOB = 0x0B; //Binary blob
+//0x0B Binary blob
 const BLOB_TABLE = 0x4B; //Blob table
 
 const RECIVE_TIMEOUT_GetNeighbourTableBlobs = 10000;

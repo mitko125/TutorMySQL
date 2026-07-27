@@ -9,23 +9,32 @@
         .report-container { width: 95%; margin: 20px auto; padding: 20px; border: 1px solid #0056b3; background: #fff; }
         .action-bar { margin-bottom: 15px; display: flex; gap: 15px; align-items: center; background-color: #f2f7fc; padding: 10px; border: 1px solid #0056b3; }
         
-        /* КОНТЕНЕР ЗА СКРОЛ - Оптимизиран */
-        .table-wrapper { width: 100%; max-height: 550px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; padding-bottom: 5px; }
+        /* КОНТЕЙНЕР ЗА ВЕРТИКАЛЕН И ХОРИЗОНТАЛЕН СКРОЛ (Макс височина 500px за тест) */
+        .table-wrapper { width: 100%; max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
         
         /* ТАБЛИЦА - Променена на table-layout: auto за автоматичен размер */
         .grid-table { width: 100%; border-collapse: collapse; table-layout: auto; min-width: max-content; }
         .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
         
-        /* Заглавна част (Фиксиран ред най-горе) */
+        /* Премахва линията м/у първия и втори ред в колона 0 на заглавието (текст №)*/
+        .grid-table thead tr:nth-child(1) th:nth-child(1) { border-bottom: none; }  /* Премахва долната линия */
+        .grid-table thead tr:nth-child(2) th:nth-child(1) { border-top: none; }     /* Премахва горната линия */
+        /* Демо колона 1
+        .grid-table thead tr:nth-child(1) th:nth-child(2) { border-bottom: none; } 
+        .grid-table thead tr:nth-child(2) th:nth-child(2) { border-top: none; } */
+
+        
+        /* Заглавна част (Фиксирана най-горе) */
         .grid-table th { background-color: #0056b3; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
         .grid-table th:hover { background-color: #004494; }
         .grid-table tr:nth-child(even) { background-color: #f9fbfd; }
         
         /* Ресайзер елемент */
-        .resizer { position: absolute; right: 0; top: 0; width: 4px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; background-color: transparent; }
-        .resizer:hover { background-color: transparent; }
+        .resizer { position: absolute; right: 0; top: 0; width: 4px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; }
+        .resizer:hover { background-color: #0056b3; }
         .sort-icon { inline-size: 15px; display: inline-block; text-align: center; margin-left: 5px; }
         h2 { color: #333; margin-top: 0; }
+
         select { padding: 6px; font-weight: bold; border: 1px solid #ccc; }
 
         /* Дясно подравнени колони с цифри */
@@ -60,7 +69,7 @@
         <button id="exportCsvBtn" class="btn-sync" style="padding: 6px 15px; background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; margin-left: auto;">📥 Експорт към Excel (CSV)</button>
     </div>
 
-    <!-- ТАБЛИЦАТА С ИНТЕГРИРАН COLGROUP ЗА ПРЕОРАЗМЕРЯВАНЕТО -->
+    <!-- ТАБЛИЦАТА С ИНТЕГРИРАН colgroup ЗА ПРЕОРАЗМЕРЯВАНЕТО -->
     <div class="table-wrapper">
         <table class="grid-table" id="lqiTable">
             <colgroup>
@@ -125,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
             data.forEach(h => {
                 const opt = document.createElement('option');
                 opt.value = h.id_hardware;
-                // Пресъздаваме визуализацията от твоята картинка
                 opt.textContent = `№${h.id_hardware} - ${h.city_name}, ${h.address_name}`;
                 select.appendChild(opt);
             });
@@ -195,7 +203,6 @@ function renderTable(data) {
     });
 }
 
-// БРОНИРАНО СОРТИРАНЕ ПО ВСИЧКИ 15 КОЛОНИ
 function sortTable(idx) {
     sortDirections[idx] = !sortDirections[idx];
     const isAsc = sortDirections[idx];
@@ -228,7 +235,7 @@ function sortTable(idx) {
     renderTable(gridRows);
 }
 
-// ЕКСПОРТ CSV СЪС СПАСИТЕЛЕН ПОЯС
+// Экспорт CSV
 document.getElementById('exportCsvBtn').addEventListener('click', async () => {
     if (gridRows.length === 0) return alert('Няма данни за експорт!');
     
@@ -276,8 +283,8 @@ document.getElementById('exportCsvBtn').addEventListener('click', async () => {
     const link = document.createElement("a"); 
     link.href = url; 
     link.download = name; 
-    document.body.appendChild(link); 
-    link.click(); 
+    document.body.appendChild(link);
+    link.click();
     document.body.removeChild(link);
 });
 
@@ -292,13 +299,10 @@ function initResizableColumns() {
     cols.forEach((col, index) => {
         const resizer = col.querySelector('.resizer');
         if (!resizer) return;
-        
         let startX, startWidth, targetCol;
-        
         resizer.addEventListener('mousedown', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
             startX = e.pageX;
             
             // Свързваме директно колоната от втория ред със съответния <col> таг
@@ -307,11 +311,9 @@ function initResizableColumns() {
             
             // Взимаме текущата ширина на th клетката
             startWidth = col.offsetWidth;
-            
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         });
-        
         function onMouseMove(e) {
             const width = startWidth + (e.pageX - startX);
             if (width > 60) {
@@ -319,7 +321,6 @@ function initResizableColumns() {
                 targetCol.style.width = width + 'px';
             }
         }
-        
         function onMouseUp() {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
