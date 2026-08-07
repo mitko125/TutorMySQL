@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Настройка на Осветители - 2 Таба</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <script src="../js/menu.js"></script>
+    <style>
+        /* Ползваме същия тестван и брониран Responsive стил от рутерите */
+        .lights-container { width: 96%; margin: 15px auto; padding: 15px; border: 1px solid #0056b3; background: #fff; box-sizing: border-box; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+        .header-row h2 { margin: 0; font-size: 20px; color: #333; }
+        .global-actions { display: flex; gap: 5px; }
+
+        .tab-bar { display: flex; background-color: #f1f1f1; border: 1px solid #ccc; border-bottom: none; overflow-x: auto; white-space: nowrap; }
+        .tab-btn { background: none; border: 1px solid transparent; padding: 10px 16px; cursor: pointer; font-weight: bold; font-size: 14px; color: #555; border-radius: 4px 4px 0 0; flex-shrink: 0; }
+        .tab-btn:hover { background-color: #e7e7e7; }
+        .tab-btn.active { background-color: #fff; border: 1px solid #ccc; border-bottom: 1px solid #fff; color: #0056b3; position: relative; z-index: 2; }
+        
+        .tab-content { border: 1px solid #ccc; padding: 15px; background-color: #fff; min-height: 400px; box-sizing: border-box; }
+        
+        .panel-layout { display: flex; gap: 15px; flex-wrap: nowrap; align-items: flex-start; }
+        .table-side { flex: 1; min-width: 0; }
+        
+        /* Дясната контролна лента за уличните осветители */
+        .control-side { width: 180px; min-width: 180px; display: flex; flex-direction: column; gap: 10px; background: #f8f9fa; padding: 12px; border: 1px solid #ccc; box-sizing: border-box; }
+        .scope-box { border: 1px dashed #0056b3; padding: 8px; background: #eef5fc; text-align: center; }
+        .scope-box label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; }
+        .radio-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding-left: 10px; }
+        
+        .btn-mfc { padding: 8px; font-weight: bold; cursor: pointer; border: 1px solid #999; background: #e1e1e1; text-align: center; font-size: 13px; }
+        .btn-mfc:hover { background: #d0d0d0; }
+        .tab-title-text { font-weight: bold; color: #0056b3; display: block; margin-bottom: 10px; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="lights-container">
+    
+    <!-- ГЛАВНА ШАПКА С ОБЩИТЕ БУТОНИ -->
+    <div class="header-row">
+        <h2>💡 Настройка на Улични Осветители и Модели</h2>
+        <div class="global-actions">
+            <button id="globalRefreshBtn" class="btn-mfc">🔄 Обнови</button>
+            <button id="globalExportBtn" class="btn-mfc" style="background:#28a745; color:white; border:none;">📥 Експорт (CSV)</button>
+        </div>
+    </div>
+
+    <!-- ЛЕНТА С 2 ТАБА -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab1')">1. Улични осветители (Хиляди тела)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab2')">2. Модели осветители</button>
+    </div>
+
+    <div class="tab-content">
+        
+        <!-- ТАБ 1: УЛИЧНИ ОСВЕТИТЕЛИ -->
+        <div id="tab1" class="tab-pane">
+            <span class="tab-title-text">Списък на физическите осветителни тела в мрежата:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableLightsList">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">№ Лампа<div class="resizer"></div></th>
+                                    <th style="width: 150px;">MAC Адрес<div class="resizer"></div></th>
+                                    <th style="width: 150px;">Улица<div class="resizer"></div></th>
+                                    <th style="width: 70px;">№<div class="resizer"></div></th>
+                                    <th style="width: 120px;">Модел (ID)<div class="resizer"></div></th>
+                                    <th style="width: 100px;">Статус<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyLightsList">
+                                <!-- Данните ще се инжектират тук -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <!-- УМНИЯТ ПРЕВКЛЮЧВАТЕЛ ЛЯВО/ДЯСНО ЗА МАСОВИ ОПЕРАЦИИ -->
+                    <div class="scope-box">
+                        <label>📌 Обхват на командата:</label>
+                        <div class="radio-group">
+                            <div><input type="radio" id="scopeRow" name="lightActionScope" value="row" checked> <label for="scopeRow">Маркиран</label></div>
+                            <div><input type="radio" id="scopeAll" name="lightActionScope" value="all"> <label for="scopeAll">Всички (stop=0)</label></div>
+                        </div>
+                    </div>
+                    <!-- Място за твоите десни C++ бутони за действие -->
+                    <button onclick="sendLightCommand()" class="btn-mfc" style="background:#0056b3; color:white; border:none; padding:10px;">⚡ Включи / Изключи</button>
+                    <button class="btn-mfc">🔧 Програмирай тяло</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБ 2: МОДЕЛИ ОСВЕТИТЕЛИ -->
+        <div id="tab2" class="tab-pane" style="display:none;">
+            <span class="tab-title-text">Номенклатура на използваните модели и мощности:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableLightModels">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">ID Модел<div class="resizer"></div></th>
+                                    <th style="width: 250px;">Наименование / Марка на тялото<div class="resizer"></div></th>
+                                    <th style="width: 120px;">Мощност (W)<div class="resizer"></div></th>
+                                    <th style="width: 150px;">Производител<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyLightModels">
+                                <!-- Данните ще се инжектират тук -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <button class="btn-mfc" style="background:#28a745; color:white; border:none;">➕ Добави модел</button>
+                    <button class="btn-mfc" style="background:#d9534f; color:white; border:none;">❌ Изтрий модел</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ЗАРЕЖДАНЕ НА ДИРИГЕНТИТЕ -->
+<script src="../js/lights_main.js"></script>
+<script src="../js/lights_tab1.js"></script>
+<script src="../js/lights_tab2.js"></script>
+</body>
+</html>

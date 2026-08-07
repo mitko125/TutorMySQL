@@ -170,6 +170,80 @@ tr:hover {
     background-color: #fdfdfd;
 }
 
+/* ТАБЛИЦИ (за настройки/отчети) */
+.table-wrapper {
+    width: 100%;
+    max-height: 380px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid #ccc;
+    background: #fff;
+}
+
+.grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    min-width: max-content;
+}
+
+.grid-table th,
+.grid-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+}
+
+.grid-table tr:nth-child(even):not(.selected) {
+    background-color: #f2f7fc;
+}
+
+/* Заглавна част (Фиксирана най-горе) */
+.grid-table th {
+    background-color: #0056b3;
+    color: white;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.grid-table th:hover {
+    background-color: #004494;
+}
+
+.grid-table tr.selected {
+    background-color: #b3d7ff !important;
+}
+
+.sort-icon {
+    inline-size: 15px;
+    display: inline-block;
+    text-align: center;
+    margin-left: 5px;
+}
+
+/* Ресайзер елемент */
+.resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 4px;
+    cursor: col-resize;
+    user-select: none;
+    height: 100%;
+    z-index: 11;
+}
+
+.resizer:hover {
+    background-color: #0056b3;
+}
+
 /* БУТОНИ */
 .btn-container {
     display: flex;

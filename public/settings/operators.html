@@ -8,16 +8,17 @@
     <style>
         .operators-container { width: 95%; max-width: 850px; margin: 30px auto; padding: 20px; border: 1px solid #0056b3; background: #fff; }
         .window-layout { display: flex; gap: 20px; }
-        .table-side { flex: 1; }
+        .table-side { flex: 1; min-width: 0; }
         .buttons-side { width: 150px; display: flex; flex-direction: column; gap: 10px; justify-content: flex-start; }
         
-        .grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
-        .grid-table th { background-color: #0056b3; color: white; cursor: pointer; user-select: none; }
-        .grid-table tr.selected { background-color: #b3d7ff !important; }
-        .grid-table tr:nth-child(even):not(.selected) { background-color: #f2f7fc; }
+        /* ТАБЛИЦА */
+        /* за да не се примачква с бутоните при свиване */
+        .table-side { 
+            flex: 1; 
+            min-width: 0; 
+            overflow-x: auto; /* ТОВА СПАСЯВА БУТОНИТЕ ОТ ЗАКРИВАНЕ */
+        }
         
-        .resizer { position: absolute; right: 0; top: 0; width: 3px; cursor: col-resize; height: 100%; z-index: 11; }
         .btn-mfc { padding: 6px; font-weight: bold; cursor: pointer; text-align: center; }
         .editor-panel { display: none; margin-top: 20px; padding: 15px; border: 1px dashed #0056b3; background: #f9fbfd; }
         .form-group { margin-bottom: 10px; }

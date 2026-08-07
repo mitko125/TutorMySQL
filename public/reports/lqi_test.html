@@ -9,31 +9,15 @@
         .report-container { width: 95%; margin: 20px auto; padding: 20px; border: 1px solid #0056b3; background: #fff; }
         .action-bar { margin-bottom: 15px; display: flex; gap: 15px; align-items: center; background-color: #f2f7fc; padding: 10px; border: 1px solid #0056b3; }
         
-        /* КОНТЕЙНЕР ЗА ВЕРТИКАЛЕН И ХОРИЗОНТАЛЕН СКРОЛ (Макс височина 500px за тест) */
-        .table-wrapper { width: 100%; max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
-        
-        /* ТАБЛИЦА - Променена на table-layout: auto за автоматичен размер */
-        .grid-table { width: 100%; border-collapse: collapse; table-layout: auto; min-width: max-content; }
-        .grid-table th, .grid-table td { border: 1px solid #ccc; padding: 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
-        
-        /* Премахва линията м/у първия и втори ред в колона 0 на заглавието (текст №)*/
+        h2 { color: #333; margin-top: 0; }
+
+        /* ТАБЛИЦА */
+        /* Премахва линията м/у първия и втори ред в колона 1 на заглавието (текст №)*/
         .grid-table thead tr:nth-child(1) th:nth-child(1) { border-bottom: none; }  /* Премахва долната линия */
         .grid-table thead tr:nth-child(2) th:nth-child(1) { border-top: none; }     /* Премахва горната линия */
-        /* Демо колона 1
+        /* Демо колона 2
         .grid-table thead tr:nth-child(1) th:nth-child(2) { border-bottom: none; } 
         .grid-table thead tr:nth-child(2) th:nth-child(2) { border-top: none; } */
-
-        
-        /* Заглавна част (Фиксирана най-горе) */
-        .grid-table th { background-color: #0056b3; color: white; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 10; }
-        .grid-table th:hover { background-color: #004494; }
-        .grid-table tr:nth-child(even) { background-color: #f9fbfd; }
-        
-        /* Ресайзер елемент */
-        .resizer { position: absolute; right: 0; top: 0; width: 4px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; }
-        .resizer:hover { background-color: #0056b3; }
-        .sort-icon { inline-size: 15px; display: inline-block; text-align: center; margin-left: 5px; }
-        h2 { color: #333; margin-top: 0; }
 
         select { padding: 6px; font-weight: bold; border: 1px solid #ccc; }
 

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Настройка на Рутери - 6 Таба</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <script src="../js/menu.js"></script>
+    <style>
+        .routers-container { width: 96%; margin: 15px auto; padding: 15px; border: 1px solid #0056b3; background: #fff; box-sizing: border-box; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+        .header-row h2 { margin: 0; font-size: 20px; color: #333; }
+        .global-actions { display: flex; gap: 5px; }
+
+        .tab-bar { display: flex; background-color: #f1f1f1; border: 1px solid #ccc; border-bottom: none; overflow-x: auto; white-space: nowrap; }
+        .tab-btn { background: none; border: 1px solid transparent; padding: 10px 16px; cursor: pointer; font-weight: bold; font-size: 14px; color: #555; border-radius: 4px 4px 0 0; flex-shrink: 0; }
+        .tab-btn:hover { background-color: #e7e7e7; }
+        .tab-btn.active { background-color: #fff; border: 1px solid #ccc; border-bottom: 1px solid #fff; color: #0056b3; position: relative; z-index: 2; }
+        
+        .tab-content { border: 1px solid #ccc; padding: 15px; background-color: #fff; min-height: 400px; box-sizing: border-box; }
+        .panel-layout { display: flex; gap: 15px; flex-wrap: nowrap; align-items: flex-start; }
+        .table-side { flex: 1; min-width: 0; }
+        
+        .control-side { width: 180px; min-width: 180px; display: flex; flex-direction: column; gap: 10px; background: #f8f9fa; padding: 12px; border: 1px solid #ccc; box-sizing: border-box; }
+        .scope-box { border: 1px dashed #0056b3; padding: 8px; background: #eef5fc; text-align: center; }
+        .scope-box label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 6px; }
+        .radio-group { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding-left: 10px; }
+        
+        .btn-mfc { padding: 8px; font-weight: bold; cursor: pointer; border: 1px solid #999; background: #e1e1e1; text-align: center; font-size: 13px; }
+        .btn-mfc:hover { background: #d0d0d0; }
+        .tab-title-text { font-weight: bold; color: #0056b3; display: block; margin-bottom: 10px; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="routers-container">
+    
+    <div class="header-row">
+        <h2>⚙️ Конфигуриране на Централни Рутери и Таймери</h2>
+        <div class="global-actions">
+            <button id="globalRefreshBtn" class="btn-mfc">🔄 Обнови</button>
+            <button id="globalExportBtn" class="btn-mfc" style="background:#28a745; color:white; border:none;">📥 Експорт (CSV)</button>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab1')">1. Таймери (БД)</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab2')">2. Таймери в рутерите</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab3')">3. Осветители</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab4')">4. Връзки</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab5')">5. Рутери</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab6')">6. Електромери</button>
+    </div>
+
+    <div class="tab-content">
+        
+        <!-- ТАБ 1: ТАЙМЕРИ В БАЗАТА ДАННИ -->
+        <div id="tab1" class="tab-pane">
+            <span class="tab-title-text">Шаблони на таймери, записани в MySQL:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableTimersDb">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">ID Т-р<div class="resizer"></div></th>
+                                    <th style="width: 180px;">Име Шаблон<div class="resizer"></div></th>
+                                    <th style="width: 110px;">Включване<div class="resizer"></div></th>
+                                    <th style="width: 110px;">Изключване<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyTimersDb"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <button class="btn-mfc" style="background:#28a745; color:white; border:none;">➕ Нов шаблон</button>
+                    <button class="btn-mfc" style="background:#d9534f; color:white; border:none;">❌ Изтрий шаблон</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБ 2: ТАЙМЕРИ В РУТЕРИТЕ -->
+        <div id="tab2" class="tab-pane" style="display:none;">
+            <span class="tab-title-text">Закачане на таймери към физическите хардуери:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableTimersHard">
+                            <thead>
+                                <tr>
+                                    <th style="width: 130px;">Трафопост (IP)<div class="resizer"></div></th>
+                                    <th style="width: 180px;">Адрес / Местоположение<div class="resizer"></div></th>
+                                    <th style="width: 140px;">Активен Таймер<div class="resizer"></div></th>
+                                    <th style="width: 100px;">Stop<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyTimersHard"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <div class="scope-box">
+                        <label>📌 Обхват на командата:</label>
+                        <div class="radio-group">
+                            <div><input type="radio" id="scopeRow" name="actionScope" value="row" checked> <label for="scopeRow">Маркиран</label></div>
+                            <div><input type="radio" id="scopeAll" name="actionScope" value="all"> <label for="scopeAll">Всички (stop=0)</label></div>
+                        </div>
+                    </div>
+                    <button onclick="sendTimerAction()" class="btn-mfc" style="background:#0056b3; color:white; border:none; padding:10px;">📤 Изпрати таймер</button>
+                    <button class="btn-mfc">🔄 Провери състояние</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБ 3: ОСВЕТИТЕЛИ КЪМ РУТЕРА -->
+        <div id="tab3" class="tab-pane" style="display:none;">
+            <span class="tab-title-text">Улични осветители, зачислени към избрания централен рутер:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableRoutersLamps">
+                            <thead>
+                                <tr>
+                                    <th style="width: 90px;">№ Лампа<div class="resizer"></div></th>
+                                    <th style="width: 180px;">MAC Адрес на тялото<div class="resizer"></div></th>
+                                    <th style="width: 120px;">Текущ Статус<div class="resizer"></div></th>
+                                    <th style="width: 100px;">Качество (LQI)<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyRoutersLamps"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <button class="btn-mfc" style="background:#0056b3; color:white; border:none;">📡 Разпитай мрежа</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБ 4: ВРЪЗКИ (MESH РУТИРАНЕ) -->
+        <div id="tab4" class="tab-pane" style="display:none;">
+            <span class="tab-title-text">Топология и mesh маршрути на Jennic мрежата:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableMeshLinks">
+                            <thead>
+                                <tr>
+                                    <th style="width: 150px;">От възел (Предавател)<div class="resizer"></div></th>
+                                    <th style="width: 150px;">Към възел (Приемник)<div class="resizer"></div></th>
+                                    <th style="width: 150px;">Качество на трасето<div class="resizer"></div></th>
+                                    <th style="width: 100px;">Затихване (PER)<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyMeshLinks"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <button class="btn-mfc">🔄 Трасирай връзки</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБ 5: РУТЕРИ (ХАРДУЕРИ) -->
+        <div id="tab5" class="tab-pane" style="display:none;">
+            <span class="tab-title-text">Номенклатура и състояние на физическите координатори:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableHardwaresList">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">ID Х-р<div class="resizer"></div></th>
+                                    <th style="width: 160px;">Наименование на рутер<div class="resizer"></div></th>
+                                    <th style="width: 110px;">Версия Хардуер<div class="resizer"></div></th>
+                                    <th style="width: 110px;">GPRS Статус<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyHardwaresList"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <button class="btn-mfc" style="background:#28a745; color:white; border:none;">🔧 Конфигурирай</button>
+                    <button class="btn-mfc" style="background:#d9534f; color:white; border:none;">🚨 Спри обект</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБ 6: ЕЛЕКТРОМЕРИ -->
+        <div id="tab6" class="tab-pane" style="display:none;">
+            <span class="tab-title-text">Отчитане на енергийни показатели и мощности:</span>
+            <div class="panel-layout">
+                <div class="table-side">
+                    <div class="table-wrapper">
+                        <table class="grid-table" id="tableEnergyMeters">
+                            <thead>
+                                <tr>
+                                    <th style="width: 90px;">ID Метер<div class="resizer"></div></th>
+                                    <th style="width: 170px;">Местоположение / Трафопост<div class="resizer"></div></th>
+                                    <th style="width: 120px;">Обща консумация (kWh)<div class="resizer"></div></th>
+                                    <th style="width: 110px;">Текуща мощност (kW)<div class="resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyEnergyMeters"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="control-side">
+                    <button class="btn-mfc" style="background:#0056b3; color:white; border:none;">⚡ Нулирай пик</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ИНДУСТРИАЛНОТО ЗАРЕЖДАНЕ НА 7-ТЕ ОТДЕЛНИ СКРИПТА -->
+<script src="../js/routers_main.js"></script>
+<script src="../js/routers_tab1.js"></script>
+<script src="../js/routers_tab2.js"></script>
+<script src="../js/routers_tab3.js"></script>
+<script src="../js/routers_tab4.js"></script>
+<script src="../js/routers_tab5.js"></script>
+<script src="../js/routers_tab6.js"></script>
+</body>
+</html>
