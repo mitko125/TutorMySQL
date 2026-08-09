@@ -23,9 +23,12 @@ body {
 }
 
 .container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
+    width: 95%;
+    margin: 15px auto;
+    padding: 15px;
+    border: 1px solid #0056b3;
+    background: #fff;
+    box-sizing: border-box;
 }
 
 /* ОБЩА НАВИГАЦИЯ (МЕНЮ) */
