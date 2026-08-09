@@ -47,6 +47,7 @@
     <h2 style="color: #0056b3;">Добре дошли в Централния Пулт за Управление</h2>
     <p id="welcomeText" style="font-size: 18px; font-weight: bold;"></p>
     <p>Използвайте горната навигационна лента, за да управлявате системата и да разглеждате отчетите.</p>
+    <div id="statusMessage1" class="status-msg"></div>
 </div>
 
 <script>
@@ -54,15 +55,15 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get('error');
-    const statusMsg = document.getElementById('statusMessage');
+    const statusMsg1 = document.getElementById('statusMessage1');
     
     // Улавяме грешките от Middleware контрольорa
     if (errorParam === 'no_rights') {
-        statusMsg.textContent = '❌ Достъпът е забранен! Нямате административни права.';
-        statusMsg.style.color = 'red';
+        statusMsg1.textContent = '❌ Достъпът е забранен! Нямате административни права.';
+        statusMsg1.style.color = 'red';
     } else if (errorParam === 'no_connection') {
-        statusMsg.textContent = '⚠️ Няма връзка с MySQL! Настройте сървъра локално.';
-        statusMsg.style.color = 'orange';
+        statusMsg1.textContent = '⚠️ Няма връзка с MySQL! Настройте сървъра локално.';
+        statusMsg1.style.color = 'orange';
     }
 
     // 1. ПЪРВО ПРОВЕРЯВАМЕ СТАТУСА НА БАЗАТА ДАННИ
@@ -107,6 +108,7 @@ document.getElementById('loginBtn').addEventListener('click', () => {
     const id = document.getElementById('operatorSelect').value;
     const password = document.getElementById('passwordInput').value;
     const statusMsg = document.getElementById('statusMessage');
+    statusMsg.textContent = '';
 
     if (!id) {
         statusMsg.textContent = 'Моля, изберете оператор!';

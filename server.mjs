@@ -131,15 +131,24 @@ app.post('/api/login', (req, res) => {
         
         // Сравняваме я с въведената от потребителя
         if (decryptedDbPassword === password) {
+            let finalPrivilege = 0;
             activeSessions[clientIp] = {
                 id_operator: operator.id_operator,
                 name: operator.name_operator,
-                privilege: operator.privilege,
+                privilege: finalPrivilege = operator.privilege,
                 old_clientIp: null,
                 old_typeConfig: null,
                 old_id_pc: null
             };
-            res.json({ success: true, privilege: operator.privilege, name: operator.name_operator });
+
+            // ако никой не е с привилегия 2
+            connection.query('SELECT COUNT(*) as adminCount FROM operators WHERE privilege = 2', (err, rows) => {
+                if (err) return res.status(500).json({ success: false, message: err.message });
+                if (rows.adminCount === 0)
+                    finalPrivilege = PRIVILEGE.CONFIG;
+            });
+
+            res.json({ success: true, privilege: finalPrivilege, name: operator.name_operator });
         } else {
             res.json({ success: false, message: 'Грешна парола!' });
         }
@@ -154,6 +163,95 @@ app.post('/api/logout', (req, res) => {
         console.log(`🚪 Операторът от IP: ${clientIp} излезе успешно.`);
     }
     res.json({ success: true });
+});
+
+// Извличане на всички оператори
+app.get('/api/mysql/operators-list', (req, res) => {
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ error: 'Нямате права!' });
+
+    const connection = db.getConn();
+    connection.query('SELECT * FROM operators ORDER BY id_operator', (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const formatted = results.map(row => ({
+            id_operator: row.id_operator,
+            name_operator: row.name_operator, // Тук автоматично ще пише "Иван", благодарение на новия typeCast
+            privilege: row.privilege,
+            privilege_text: PRIVILEGE_TEXT[row.privilege] || "Неизвестна"
+        }));
+
+        res.json(formatted);
+    });
+});
+
+// СЪЗДАВАНЕ НА НОВ ОПЕРАТОР (INSERT)
+app.post('/api/mysql/operators-add', (req, res) => {
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ error: 'Нямате права!' });
+
+    const { name, password, privilege, idPC } = req.body;
+
+    const connection = db.getConn();
+
+    // Проверяваме дали в базата има същото име
+    connection.query(`SELECT id_operator FROM operators WHERE name_operator = '${name}'`, (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+
+        if (rows.length !== 0) {
+            return res.status(500).json({ success: false, message: `Има оператор с име = '${name}' !` });
+        }
+
+        const encryptedPassword = codePassword(password, 24);
+
+        const queryText = `INSERT INTO operators (name_operator, password_operator, privilege)
+                   VALUES (${db.toHex(name)}, ${db.toHex(encryptedPassword)}, ${parseInt(privilege)})`;
+
+        connection.query(queryText, (insertErr) => {
+            if (insertErr) return res.status(500).json({ success: false, message: insertErr.message });
+
+            storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_OPERATORS, parseInt(idPC) || 0);
+            res.json({ success: true, message: 'Операторът е създаден успешно!' });
+        });
+    });
+});
+
+// ИЗТРИВАНЕ НА ОПЕРАТОР (DELETE)
+app.post('/api/mysql/operators-delete', (req, res) => {
+    const clientIp = req.ip;
+    const session = activeSessions[clientIp];
+    if (!session || session.privilege !== PRIVILEGE.CONFIG)return res.status(403).json({ success: false, message: 'Нямате права!' });
+
+    const { id_operator, idPC } = req.body;
+
+    if (session.id_operator === parseInt(id_operator)) {
+        return res.status(400).json({ success: false, message: 'Не можете да изтриете собствения си профил!' });
+    }
+
+    const connection = db.getConn();
+
+    // Защита: Проверяваме дали не трием последния админ
+    connection.query('SELECT COUNT(*) as adminCount FROM operators WHERE privilege = 2', (errAdmins, resAdmins) => {
+        if (errAdmins) return res.status(500).json({ success: false, message: errAdmins.message });
+
+        connection.query('SELECT privilege FROM operators WHERE id_operator = ?', [id_operator], (errOp, resOp) => {
+            if (errOp) return res.status(500).json({ success: false, message: errOp.message });
+
+            if (resOp.length > 0 && resOp[0].privilege === 2 && resAdmins[0].adminCount <= 1) {
+                return res.status(400).json({ success: false, message: 'Грешка: Не може да изтриете последния Администратор!' });
+            }
+
+            // Изпълняваме изтриването
+            connection.query('DELETE FROM operators WHERE id_operator = ?', [id_operator], (deleteErr) => {
+                if (deleteErr) return res.status(500).json({ success: false, message: deleteErr.message });
+
+                storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_OPERATORS, parseInt(idPC) || 0);
+                res.json({ success: true, message: 'Операторът е изтрит успешно!' });
+            });
+        });
+    });
 });
 
 // Временен тест на MySQL в паметта
@@ -274,104 +372,6 @@ app.post('/api/mysql/delete-logs', (req, res) => {
         storeDataConfigMessage(session, CONFIG_MESSAGES._CLEAR_ACCOUNTS, parseInt(idPC) || 0);
 
         res.json({ success: true });
-    });
-});
-
-// Извличане на всички оператори (Само за Администратор)
-app.get('/api/mysql/operators-list', (req, res) => {
-    const clientIp = req.ip;
-    const session = activeSessions[clientIp];
-    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ error: 'Нямате права!' });
-
-    const connection = db.getConn();
-    connection.query('SELECT * FROM operators ORDER BY id_operator', (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        const formatted = results.map(row => ({
-            id_operator: row.id_operator,
-            name_operator: row.name_operator, // Тук автоматично ще пише "Иван", благодарение на новия typeCast
-            privilege: row.privilege,
-            privilege_text: PRIVILEGE_TEXT[row.privilege] || "Неизвестна",
-            password_plain: "пропускаме_засега"
-        }));
-
-        res.json(formatted);
-    });
-});
-
-// СЪЗДАВАНЕ НА НОВ ОПЕРАТОР (INSERT)
-app.post('/api/mysql/operators-add', (req, res) => {
-    const clientIp = req.ip;
-    const session = activeSessions[clientIp];
-    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ error: 'Нямате права!' });
-
-    const { name, password, privilege, idPC } = req.body;
-
-    const connection = db.getConn();
-
-    // Проверяваме дали в базата има Администратори (Ниво 2)
-    connection.query('SELECT COUNT(*) as adminCount FROM operators WHERE privilege = 2', (err, rows) => {
-        if (err) return res.status(500).json({ success: false, message: err.message });
-
-        let finalPrivilege = parseInt(privilege);
-        // Ако няма нито един админ, автоматично му заковаваме privilege = 2!
-        if (rows.adminCount === 0) {
-            finalPrivilege = 2;
-        } else {
-            if (!session || session.privilege !== PRIVILEGE.CONFIG) {
-                return res.status(403).json({ success: false, message: 'Нямате административни права!' });
-            }
-        }
-
-        const encryptedPassword = codePassword(password, 24);
-
-        const queryText = `INSERT INTO operators (name_operator, password_operator, privilege)
-                   VALUES (${db.toHex(name)}, ${db.toHex(encryptedPassword)}, ${finalPrivilege})`;
-
-        connection.query(queryText, (insertErr) => {
-            if (insertErr) return res.status(500).json({ success: false, message: insertErr.message });
-
-            storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_OPERATORS, parseInt(idPC) || 0);
-            res.json({ success: true, message: 'Операторът е създаден успешно!' });
-        });
-    });
-});
-
-// ИЗТРИВАНЕ НА ОПЕРАТОР (DELETE)
-app.post('/api/mysql/operators-delete', (req, res) => {
-    const clientIp = req.ip;
-    const session = activeSessions[clientIp];
-    if (!session || session.privilege !== PRIVILEGE.CONFIG)return res.status(403).json({ success: false, message: 'Нямате права!' });
-
-    const { id_operator, idPC } = req.body;
-
-    if (session.id_operator === parseInt(id_operator)) {
-        return res.status(400).json({ success: false, message: 'Не можете да изтриете собствения си профил!' });
-    }
-
-    const connection = db.getConn();
-
-    // Защита: Проверяваме дали не трием последния админ
-    connection.query('SELECT COUNT(*) as adminCount FROM operators WHERE privilege = 2', (errAdmins, resAdmins) => {
-        if (errAdmins) return res.status(500).json({ success: false, message: errAdmins.message });
-
-        connection.query('SELECT privilege FROM operators WHERE id_operator = ?', [id_operator], (errOp, resOp) => {
-            if (errOp) return res.status(500).json({ success: false, message: errOp.message });
-
-            if (resOp.length > 0 && resOp[0].privilege === 2 && resAdmins[0].adminCount <= 1) {
-                return res.status(400).json({ success: false, message: 'Грешка: Не може да изтриете последния Администратор!' });
-            }
-
-            // Изпълняваме изтриването
-            connection.query('DELETE FROM operators WHERE id_operator = ?', [id_operator], (deleteErr) => {
-                if (deleteErr) return res.status(500).json({ success: false, message: deleteErr.message });
-
-                // 💾 ИНДУСТРИАЛЕН ЛОГ: Записваме събитие №2 (_CONFIG_OPERATORS) в MySQL
-                storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_OPERATORS, parseInt(idPC) || 0);
-
-                res.json({ success: true, message: 'Операторът е изтрит успешно!' });
-            });
-        });
     });
 });
 
