@@ -6,7 +6,16 @@
     <link rel="stylesheet" href="../css/main.css">
     <script src="../js/menu.js"></script>
     <style>
-        .action-bar { margin-bottom: 15px; display: flex; gap: 15px; align-items: center; background-color: #f2f7fc; padding: 10px; border: 1px solid #0056b3; }
+        .action-bar { 
+            margin-bottom: 15px;
+            display: flex; 
+            gap: 15px;
+            align-items: center; 
+            background-color: #f2f7fc; 
+            padding: 10px; 
+            border: 1px solid #0056b3; 
+            overflow-x: auto; /* ТОВА СПАСЯВА БУТОНИТЕ ОТ ЗАКРИВАНЕ */
+        }
         
         h2 { color: #333; margin-top: 0; }
 
@@ -49,7 +58,7 @@
         </select>
         
         <button id="runTestBtn" class="btn-sync" style="padding: 6px 15px; background-color: #0056b3; color: white; border: none; cursor: pointer; font-weight: bold;">Стартирай LQI Тест</button>
-        <button id="exportCsvBtn" class="btn-sync" style="padding: 6px 15px; background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; margin-left: auto;">📥 Експорт към Excel (CSV)</button>
+        <button id="exportCsvBtn" class="btn-sync" style="padding: 6px 15px; background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; margin-left: auto;">📥 Експорт (CSV)</button>
     </div>
 
     <!-- ТАБЛИЦАТА С ИНТЕГРИРАН colgroup ЗА ПРЕОРАЗМЕРЯВАНЕТО -->

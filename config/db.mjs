@@ -1,7 +1,7 @@
 import mysql from 'mysql';
 import fs from 'fs';
 import path from 'path';
-import dotenv from 'dotenv';
+import dotenv from 'dotenv';    // скрити системни като: DB_HOST и т.н. в .env файла
 import iconv from 'iconv-lite';
 
 dotenv.config();
@@ -81,5 +81,5 @@ export function getCurrentConfig() {
     };
 }
 
-// за работа със стария MySQL от 2000г., това е за текст на кирилица от http към MySQL 'cp1251'
+// за работа със стария MySQL от 2000г., това е за текст на кирилица от http UTF-8 към MySQL 'cp1251'
 export const toHex = (str) => '0x' + iconv.encode(str, 'win1251').toString('hex');

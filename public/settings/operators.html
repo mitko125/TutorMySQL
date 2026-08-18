@@ -8,18 +8,14 @@
     <style>
         .container {max-width: 600px;}
         .window-layout { display: flex; gap: 20px; }
-        .table-side { flex: 1; min-width: 0; }
-        .buttons-side { width: 150px; display: flex; flex-direction: column; gap: 10px; justify-content: flex-start; }
-        
-        /* ТАБЛИЦА */
-        /* за да не се примачква с бутоните при свиване */
         .table-side { 
             flex: 1; 
             min-width: 0; 
             overflow-x: auto; /* ТОВА СПАСЯВА БУТОНИТЕ ОТ ЗАКРИВАНЕ */
         }
-        
+        .buttons-side { width: 150px; display: flex; flex-direction: column; gap: 10px; justify-content: flex-start; }
         .btn-mfc { padding: 6px; font-weight: bold; cursor: pointer; text-align: center; }
+        
         .editor-panel { display: none; margin-top: 20px; padding: 15px; border: 1px dashed #0056b3; background: #f9fbfd; }
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 3px; color: #0056b3; }

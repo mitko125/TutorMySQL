@@ -177,7 +177,7 @@ app.get('/api/mysql/operators-list', (req, res) => {
 
         const formatted = results.map(row => ({
             id_operator: row.id_operator,
-            name_operator: row.name_operator, // Тук автоматично ще пише "Иван", благодарение на новия typeCast
+            name_operator: row.name_operator,
             privilege: row.privilege,
             privilege_text: PRIVILEGE_TEXT[row.privilege] || "Неизвестна"
         }));
@@ -197,11 +197,12 @@ app.post('/api/mysql/operators-add', (req, res) => {
     const connection = db.getConn();
 
     // Проверяваме дали в базата има същото име
-    connection.query(`SELECT id_operator FROM operators WHERE name_operator = '${name}'`, (err, rows) => {
+    connection.query(`SELECT name_operator FROM operators`, (err, rows) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
 
-        if (rows.length !== 0) {
-            return res.status(500).json({ success: false, message: `Има оператор с име = '${name}' !` });
+        const isDuplicate = rows.some(row => row.name_operator.toLowerCase() === name.toLowerCase());
+        if (isDuplicate) {
+            return res.status(400).json({ success: false, message: `Има оператор с име = '${name}' !` });
         }
 
         const encryptedPassword = codePassword(password, 24);
