@@ -9,7 +9,7 @@
 Инсталиране:
 
 ```bash
-npm install mysql
+npm install mysql2
 npm install express
 npm install dotenv
 npm install iconv-lite

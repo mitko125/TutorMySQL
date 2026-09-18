@@ -207,10 +207,9 @@ app.post('/api/mysql/operators-add', (req, res) => {
 
         const encryptedPassword = codePassword(password, 24);
 
-        const queryText = `INSERT INTO operators (name_operator, password_operator, privilege)
-                   VALUES (${db.toHex(name)}, ${db.toHex(encryptedPassword)}, ${parseInt(privilege)})`;
+        const queryText = 'INSERT INTO operators(name_operator, password_operator, privilege) VALUES (?, ?, ?)';
 
-        connection.query(queryText, (insertErr) => {
+        connection.query(queryText, [name, encryptedPassword, parseInt(privilege)], (insertErr) => {
             if (insertErr) return res.status(500).json({ success: false, message: insertErr.message });
 
             storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_OPERATORS, parseInt(idPC) || 0);
