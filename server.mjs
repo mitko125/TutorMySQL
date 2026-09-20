@@ -169,7 +169,7 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/mysql/operators-list', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
-    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ error: 'Нямате права!' });
+    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ success: false, message: 'Нямате права!' });
 
     const connection = db.getConn();
     connection.query('SELECT * FROM operators ORDER BY id_operator', (err, results) => {
@@ -190,7 +190,7 @@ app.get('/api/mysql/operators-list', (req, res) => {
 app.post('/api/mysql/operators-add', (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
-    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ error: 'Нямате права!' });
+    if (!session || session.privilege !== PRIVILEGE.CONFIG) return res.status(403).json({ success: false, message: 'Нямате права!' });
 
     const { name, password, privilege, idPC } = req.body;
 
@@ -207,10 +207,9 @@ app.post('/api/mysql/operators-add', (req, res) => {
 
         const encryptedPassword = codePassword(password, 24);
 
-        const queryText = `INSERT INTO operators (name_operator, password_operator, privilege)
-                   VALUES (${db.toHex(name)}, ${db.toHex(encryptedPassword)}, ${parseInt(privilege)})`;
+        const queryText = 'INSERT INTO operators(name_operator, password_operator, privilege) VALUES (?, ?, ?)';
 
-        connection.query(queryText, (insertErr) => {
+        connection.query(queryText, [name, encryptedPassword, parseInt(privilege)], (insertErr) => {
             if (insertErr) return res.status(500).json({ success: false, message: insertErr.message });
 
             storeDataConfigMessage(session, CONFIG_MESSAGES._CONFIG_OPERATORS, parseInt(idPC) || 0);
@@ -393,7 +392,7 @@ app.get('/api/mysql/hardwares', (req, res) => {
 app.post('/api/reports/lqi-run', async (req, res) => {
     const clientIp = req.ip;
     const session = activeSessions[clientIp];
-    if (!session || session.privilege < PRIVILEGE.SERVIZ) return res.status(403).json({ success: false, message: 'Нямате права за този отчет!' });
+    if (!session || session.privilege < PRIVILEGE.SERVIZ) return res.status(403).json({ success: false, message: 'Нямате права!' });
 
     await runLQI(req, res);
 });

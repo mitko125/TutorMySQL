@@ -58,7 +58,7 @@ public/
     ├── lqi_test.html        # Тест LQI (Качество на Jennic mesh мрежата)
     └── delete_logs.html     # Изтриване на отчетите
 
-## Останаха 2 неща (означавам с римски цифри)
+## Останаха 2 неща (означавам с римски цифри) (AI вече подготви скелет в public\js, public\reports и public\setings)
 
 I.  routers.html         # Диалогът с 6-те таба
 II. lights.html          # Улични осветители (2 таба)
@@ -77,3 +77,6 @@ II  Настройка светители
 
 ЗА ДОВЪРШВАНЕ !!!
     в настройки да се организира 'selected' като в operators.html
+        по принцип 'selected' обхваща само ред и служи за триене
+        на нас ни трябва и колона за да редактираме клетка,
+    всички таблици да се сортират и преоразмеряват като /reports/lqi_test.html, /reports/system_log.html и /settings/operators.html

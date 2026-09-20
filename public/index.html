@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get('error');
     const statusMsg1 = document.getElementById('statusMessage1');
+    statusMsg1.textContent = '';
     
     // Улавяме грешките от Middleware контрольорa
     if (errorParam === 'no_rights') {
